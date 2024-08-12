@@ -2,14 +2,16 @@
   "name": "create-project",
   "version": "1.0.0",
   "description": "",
-  "private": true,
   "main": "index.js",
+  "type": "module",
   "bin": {
     "xg-create": "index.js"
   },
   "scripts": {
-    "test": "npx tsx ./src/indexBackup.ts",
-    "dev": "npx tsx ./src/index.ts"
+    "dev": "unbuild --stub",
+    "build": "unbuild",
+    "create": "npm run build && node index.js",
+    "test": "npx tsx ./src/index.ts"
   },
   "engines": {
     "node": "^18.0.0 || >=20.0.0"

@@ -9,9 +9,7 @@ import {
   blue,
   cyan,
   green,
-  lightBlue,
   lightGreen,
-  lightRed,
   magenta,
   red,
   reset,
@@ -254,7 +252,7 @@ async function init() {
         },
       },
     );
-  } catch (error) {
+  } catch (error: any) {
     console.log(error.message);
     return;
   }
