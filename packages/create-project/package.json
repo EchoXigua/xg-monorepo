@@ -1,0 +1,30 @@
+{
+  "name": "create-project",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "main": "index.js",
+  "bin": {
+    "xg-create": "index.js"
+  },
+  "scripts": {
+    "test": "npx tsx ./src/indexBackup.ts",
+    "dev": "npx tsx ./src/index.ts"
+  },
+  "engines": {
+    "node": "^18.0.0 || >=20.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/minimist": "^1.2.5",
+    "@types/prompts": "^2.4.9",
+    "cross-spawn": "^7.0.3",
+    "kolorist": "^1.8.0",
+    "minimist": "^1.2.8",
+    "prompts": "^2.4.2",
+    "tsx": "^4.17.0",
+    "unbuild": "^2.0.0"
+  }
+}
