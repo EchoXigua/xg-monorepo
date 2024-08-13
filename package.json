@@ -5,7 +5,7 @@
   "private": true,
   "keywords": [],
   "scripts": {
-    "create": "pnpm -r --filter='./packages/create-project' run create  ",
+    "create": "pnpm  --filter='./packages/create-project' run create --targetDir=apps",
     "build": "pnpm -r run build"
   },
   "author": "",

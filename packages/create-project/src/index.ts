@@ -19,9 +19,12 @@ import {
 const argv = minimist<{
   t?: string;
   template?: string;
+  targetDir?: string;
   // string: ['_'] ，确保所有位置参数（不带 -- 的参数）被解析为字符串
 }>(process.argv.slice(2), { string: ['_'] });
 const cwd = process.cwd();
+
+const INIT_CWD = process.env.INIT_CWD;
 
 type ColorFunc = (str: string | number) => string;
 type Framework = {
@@ -257,11 +260,13 @@ async function init() {
     return;
   }
 
-  console.log('result', result);
-
   const { framework, overwrite, packageName, variant } = result;
 
-  const root = path.join(cwd, targetDir);
+  let root = path.join(cwd, targetDir);
+  if (argv.targetDir && INIT_CWD) {
+    root = path.join(INIT_CWD, argv.targetDir, targetDir);
+  }
+  console.log('root', root);
 
   // 处理目录存在，删除该目录下面的所有文件和目录
   if (overwrite === 'yes') {
@@ -278,7 +283,6 @@ async function init() {
   }
 
   const pkgInfo = pkgFromUserAgent(process.env.npm_config_user_agent);
-  console.log('pkgInfo', pkgInfo);
 
   const pkgManager = pkgInfo ? pkgInfo.name : 'npm';
   const isYarn1 = pkgManager === 'yarn' && pkgInfo?.version.startsWith('1.');
@@ -367,7 +371,9 @@ async function init() {
     setupReactSwc(root, template.endsWith('-ts'));
   }
 
-  const cdProjectName = path.relative(cwd, root);
+  const cdProjectName = argv.targetDir
+    ? path.relative(INIT_CWD!, root)
+    : path.relative(cwd, root);
   console.log(`\nDone. Now run:\n`);
   if (root !== cwd) {
     console.log(
