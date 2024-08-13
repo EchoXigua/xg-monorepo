@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@xigua/components": "workspace:^"
+    "@xigua/components": "workspace:^",
+    "@xigua/utils": "workspace:^"
   }
 }

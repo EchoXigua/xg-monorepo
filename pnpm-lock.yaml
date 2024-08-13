@@ -82,7 +82,7 @@ importers:
         specifier: ^5.4.0
         version: 5.4.0(@types/node@20.14.14)
 
-  apps/manage-back:
+  backend/manage-back:
     devDependencies:
       '@types/supertest':
         specifier: ^6.0.0
@@ -103,11 +103,14 @@ importers:
         specifier: ^4.2.0
         version: 4.2.0
 
-  apps/manage-back-web:
+  frontend/manage-back-web:
     dependencies:
       '@xigua/components':
         specifier: workspace:^
         version: link:../../packages/components
+      '@xigua/utils':
+        specifier: workspace:^
+        version: link:../../shared/utils
 
   packages/components: {}
 
@@ -137,6 +140,12 @@ importers:
       unbuild:
         specifier: ^2.0.0
         version: 2.0.0(typescript@5.5.4)
+
+  shared/constants: {}
+
+  shared/hooks: {}
+
+  shared/utils: {}
 
 packages:
 
@@ -3987,6 +3996,9 @@ packages:
     peerDependencies:
       typescript: '>3.6.0'
       webpack: ^5.11.0
+    peerDependenciesMeta:
+      webpack:
+        optional: true
     dependencies:
       '@babel/code-frame': 7.24.7
       chalk: 4.1.2
@@ -6527,6 +6539,8 @@ packages:
         optional: true
       uglify-js:
         optional: true
+      webpack:
+        optional: true
     dependencies:
       '@jridgewell/trace-mapping': 0.3.25
       jest-worker: 27.5.1
@@ -6650,6 +6664,9 @@ packages:
     peerDependencies:
       typescript: '*'
       webpack: ^5.0.0
+    peerDependenciesMeta:
+      webpack:
+        optional: true
     dependencies:
       chalk: 4.1.2
       enhanced-resolve: 5.17.1
