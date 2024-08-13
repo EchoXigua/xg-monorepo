@@ -6,7 +6,9 @@
   "keywords": [],
   "scripts": {
     "create": "pnpm  --filter='./packages/create-project' run create --targetDir=apps",
-    "dev": "pnpm -r run dev",
+    "dev": "pnpm -r --parallel --filter './frontend/*' --filter './backend/*'   run dev",
+    "dev:frondend": "pnpm -r --parallel --filter='./frontend/*' run dev",
+    "dev:backend": "pnpm -r --parallel --filter='./backend/*' run dev",
     "build": "pnpm -r run build"
   },
   "author": "",
