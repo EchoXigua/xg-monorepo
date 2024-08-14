@@ -11,7 +11,8 @@
     "dev": "unbuild --stub",
     "build": "unbuild",
     "create": "npm run build && node index.js",
-    "test": "npx tsx ./src/index.ts"
+    "test": "npx tsx ./src/index.ts",
+    "clear:modules": "rimraf node_modules"
   },
   "engines": {
     "node": "^18.0.0 || >=20.0.0"

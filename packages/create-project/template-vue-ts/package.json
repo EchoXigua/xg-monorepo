@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "clear:modules": "rimraf node_modules"
   },
   "devDependencies": {
     "vue-tsc": "^2.0.19"

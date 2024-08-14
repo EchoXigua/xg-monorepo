@@ -13,7 +13,8 @@
     "build:all": "nx run-many --target=build --all --parallel",
     "build:affected": "nx affected --target=build --parallel",
     "clear:cache": "nx reset",
-    "clear:modules": "node scripts/clean-node-modules.js"
+    "clear:modules": "rimraf node_modules",
+    "clear:all": "pnpm -r --parallel run clear:modules && echo 'clear finish'"
   },
   "author": "",
   "license": "ISC",
