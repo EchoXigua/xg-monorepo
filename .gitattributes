@@ -1,0 +1,11 @@
+# 处理所有文本文件
+* text=auto
+
+# 强制使用 LF 行结束符
+*.sh eol=lf
+*.js eol=lf
+*.ts eol=lf
+*.json eol=lf
+*.yaml eol=lf
+*.yml eol=lf
+*.md eol=lf

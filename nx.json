@@ -1,0 +1,50 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "targetDefaults": {
+    "build": {
+      "outputs": ["{projectRoot}/dist/build"],
+      "cache": true
+    },
+    "start": {
+      "outputs": ["{projectRoot}/dist/start"],
+      "cache": true
+    },
+    "dev": {
+      "outputs": ["{projectRoot}/dist/dev"],
+      "cache": true
+    }
+  },
+  "defaultBase": "main",
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "@nrwl/workspace/tasks-runner",
+      "options": {
+        "parallel": 5,
+        "maxParallel": 10
+      }
+    }
+  },
+  "plugins": [
+    {
+      "plugin": "@nx/webpack/plugin",
+      "options": {
+        "buildTargetName": "build",
+        "serveTargetName": "serve",
+        "previewTargetName": "preview"
+      }
+    },
+    {
+      "plugin": "@nx/eslint/plugin",
+      "options": {
+        "targetName": "eslint:lint"
+      }
+    },
+    {
+      "plugin": "@nx/jest/plugin",
+      "options": {
+        "targetName": "test"
+      },
+      "exclude": ["backend/my-nest-app-e2e/**/*"]
+    }
+  ]
+}

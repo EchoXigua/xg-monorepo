@@ -12,3 +12,8 @@ node_modules
 temp
 TODOs.md
 .eslintcache
+
+
+
+.nx/cache
+.nx/workspace-data
