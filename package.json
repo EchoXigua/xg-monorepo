@@ -17,7 +17,7 @@
     "clear:all": "pnpm -r --parallel run clear:modules && echo 'clear finish'",
     "prepare": "pnpm -r --filter='./packages/create-project' run build"
   },
-  "author": "",
+  "author": "xigua",
   "license": "ISC",
   "dependencies": {
     "@nestjs/common": "^10.0.2",
