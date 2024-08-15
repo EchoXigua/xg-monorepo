@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "unbuild --stub",
     "build": "unbuild",
-    "create": "npm run build && node index.js",
+    "create": "node index.js",
     "test": "npx tsx ./src/index.ts",
     "clear:modules": "rimraf node_modules"
   },

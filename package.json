@@ -14,7 +14,8 @@
     "build:affected": "nx affected --target=build --parallel",
     "clear:cache": "nx reset",
     "clear:modules": "rimraf node_modules",
-    "clear:all": "pnpm -r --parallel run clear:modules && echo 'clear finish'"
+    "clear:all": "pnpm -r --parallel run clear:modules && echo 'clear finish'",
+    "prepare": "pnpm -r --filter='./packages/create-project' run build"
   },
   "author": "",
   "license": "ISC",
