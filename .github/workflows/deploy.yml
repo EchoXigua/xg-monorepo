@@ -38,6 +38,15 @@ jobs:
           # 运行部署脚本，将构建输出移动到 gh-pages 目录
           ./scripts/deploy-github.sh
 
+      - name: List files in the current directory
+        run: ls -al
+
+      - name: List files in the `gh-pages` directory
+        run: ls -al ./gh-pages
+
+      - name: Display the content of a file
+        run: cat ./gh-pages/somefile.txt
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
