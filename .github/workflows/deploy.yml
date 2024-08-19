@@ -30,6 +30,9 @@ jobs:
       - name: Build project
         run: pnpm run deploy:frontend # 替换为你的构建命令，例如 `nx build`
 
+      - name: Make deploy script executable
+        run: chmod +x ./scripts/deploy-github.sh
+
       - name: Prepare deployment
         run: |
           # 运行部署脚本，将构建输出移动到 gh-pages 目录
