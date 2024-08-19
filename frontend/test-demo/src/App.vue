@@ -1,5 +1,5 @@
 <template>
-  <div>test demo project</div>
+  <div>test demo project build test~~~</div>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
   <HelloWorld msg="Vite + Vue" />
 </template>
