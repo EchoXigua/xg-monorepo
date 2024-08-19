@@ -28,7 +28,7 @@ jobs:
         run: pnpm install
 
       - name: Build project
-        run: pnpm run build:frondend # 替换为你的构建命令，例如 `nx build`
+        run: pnpm run deploy:frontend # 替换为你的构建命令，例如 `nx build`
 
       - name: Prepare deployment
         run: |

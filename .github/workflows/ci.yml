@@ -6,10 +6,10 @@ on:
   push:
     # 指定工作流仅在特定分支上运行
     branches:
-      - main
+      - ci
   pull_request:
     branches:
-      - main
+      - ci
 
 # 定义一组任务（job）。每个任务可以包含多个步骤（steps）
 jobs:
