@@ -1,5 +1,6 @@
 <template>
   <div>App</div>
+  <div>test deploy</div>
   <Test></Test>
   <router-link to="/">home</router-link> &nbsp;
   <router-link to="/about">about</router-link>
