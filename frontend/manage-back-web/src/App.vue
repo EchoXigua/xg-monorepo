@@ -1,5 +1,5 @@
 <template>
-  <div>manage demo project build~~~~</div>
+  <div>manage demo project</div>
   <div>test deploy</div>
   <Test></Test>
   <router-link to="/">home</router-link> &nbsp;

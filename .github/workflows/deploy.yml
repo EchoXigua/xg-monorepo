@@ -28,7 +28,7 @@ jobs:
         run: pnpm install
 
       - name: Build project
-        run: pnpm run deploy:frontend # 替换为你的构建命令，例如 `nx build`
+        run: pnpm run deploy:frontend  --base=HEAD~1 --head=HEAD # 替换为你的构建命令，例如 `nx build`
 
       - name: Make deploy script executable
         run: chmod +x ./scripts/deploy-github.sh
@@ -43,9 +43,6 @@ jobs:
 
       - name: List files in the `gh-pages` directory
         run: ls -al ./gh-pages
-
-      - name: Display the content of a file
-        run: cat ./gh-pages/somefile.txt
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
