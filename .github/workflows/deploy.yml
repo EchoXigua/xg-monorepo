@@ -33,7 +33,7 @@ jobs:
       - name: Prepare deployment
         run: |
           # 运行部署脚本，将构建输出移动到 gh-pages 目录
-          ./deploy.sh
+          ./scripts/deploy-github.sh
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
