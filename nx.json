@@ -59,6 +59,11 @@
         "currentVersionResolver": "git-tag",
         "specifierSource": "conventional-commits",
         "fallbackCurrentVersionResolver": "disk"
+      },
+      "git": {
+        "commit": true,
+        "tag": true,
+        "commitMessage": "chore(release): {version} [skip ci]"
       }
     },
     "conventionalCommits": {
@@ -73,11 +78,6 @@
           "semverBump": "patch"
         }
       }
-    },
-    "git": {
-      "commit": true,
-      "tag": true,
-      "commitMessage": "chore(release): {version} [skip ci]"
     },
     "changelog":{
       "workspaceChangelog": {
