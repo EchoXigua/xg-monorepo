@@ -1,3 +1,31 @@
+## 1.2.3 (2024-08-20)
+
+
+### 🚀 Features
+
+- demo 测试更新版本
+
+- ci git user
+
+- 测试子项目更新版本号
+
+
+### 🏡 Chore
+
+- **release:** publish 1.1.0
+
+- **release:** 1.2.0
+
+- **release:** 1.2.1 [skip ci]
+
+- **release:** [skip ci]
+
+
+### ❤️  Thank You
+
+- echoxigua
+- xigua
+
 ## 1.2.2 (2024-08-20)
 
 
