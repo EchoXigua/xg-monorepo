@@ -47,10 +47,23 @@
         "specifierSource": "conventional-commits"
       }
     },
+    "conventionalCommits": {
+      "types": {
+        "feat": {
+          "semverBump": "patch"
+        },
+        "fix": {
+          "semverBump": "patch"
+        },
+        "chore": {
+          "semverBump": "patch"
+        }
+      }
+    },
     "git": {
       "commit": true,
       "tag": true,
-      "commitMessage": "chore(release): {version}"
+      "commitMessage": "chore(release): {version} [skip ci]"
     },
     "changelog":{
       "workspaceChangelog": {
