@@ -1,6 +1,6 @@
 <template>
   <div>test demo project build test~~~</div>
-  <div>测试 nx release 111</div>
+  <div>测试 nx release 成功运行</div>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
   <HelloWorld msg="Vite + Vue" />
 </template>
