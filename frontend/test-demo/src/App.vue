@@ -1,7 +1,6 @@
 <template>
   <div>test demo project build test~~~</div>
-  <div>test release</div>
-  <div>test demo version change</div>
+  <div>demo 项目 测试 nx release 功能</div>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
   <HelloWorld msg="Vite + Vue" />
 </template>
