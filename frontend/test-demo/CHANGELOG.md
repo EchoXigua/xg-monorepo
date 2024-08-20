@@ -1,3 +1,32 @@
+## 1.2.1 (2024-08-20)
+
+
+### 🚀 Features
+
+- demo 测试更新版本
+
+- 测试 release 整个流程
+
+- ci git user
+
+- ci git
+
+- update yml
+
+- ci git user
+
+- 测试 nx 提交
+
+
+### 🩹 Fixes
+
+- ci bug
+
+
+### ❤️  Thank You
+
+- echoxigua
+
 ## 1.2.0 (2024-08-20)
 
 
