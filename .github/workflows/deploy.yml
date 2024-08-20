@@ -53,7 +53,7 @@ jobs:
       - name: set up git user
         run: |
           git config --global user.email "643589668@qq.com"
-          git config --global user.name "echoxigua"
+          git config --global user.name "xigua"
 
       - name: release version
         run: pnpm exec nx release --skip-publish
