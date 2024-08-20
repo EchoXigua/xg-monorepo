@@ -27,6 +27,17 @@
         "{projectRoot}/dist/dev"
       ],
       "cache": true
+    },
+   "release-version": {
+      "executor": "@nx/js:release-version",
+      "options": {
+        "skipTag": false,
+        "skipCommit": false,
+        "skipPush": false,
+        "commitMessage": "chore(release): bump version to {version}",
+        "tagPrefix": "v",
+        "push": true
+      }
     }
   },
   "defaultBase": "main",
@@ -41,10 +52,13 @@
   ],
   "release": {
     "projects": ["frontend/*"],
+    "projectsRelationship": "independent",
     "version": {
+      "independent": true,
       "generatorOptions": {
         "currentVersionResolver": "git-tag",
-        "specifierSource": "conventional-commits"
+        "specifierSource": "conventional-commits",
+        "fallbackCurrentVersionResolver": "disk"
       }
     },
     "conventionalCommits": {
@@ -69,6 +83,8 @@
       "workspaceChangelog": {
         "createRelease": "github"
       },
+      "filename": "CHANGELOG.md",
+      "header": "# 项目变更日志",
       "projectChangelogs": true
     }
   }
