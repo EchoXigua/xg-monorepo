@@ -45,7 +45,9 @@
       "conventionalCommits": {
         "types": {
           "docs": false,
-          "feat": {}
+          "feat": {
+            "semverBump": "patch"
+          }
         }
       }
     },

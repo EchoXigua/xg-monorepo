@@ -1,7 +1,7 @@
 <template>
   <div>test demo project build test~~~</div>
   <div>test release</div>
-  <div>test version update</div>
+  <div>test demo version change</div>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
   <HelloWorld msg="Vite + Vue" />
 </template>
