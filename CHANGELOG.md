@@ -1,3 +1,14 @@
+## 1.2.0 (2024-08-20)
+
+
+### 🚀 Features
+
+- test ([b2eb460](https://github.com/EchoXigua/xg-monorepo/commit/b2eb460))
+
+### ❤️  Thank You
+
+- echoxigua
+
 ## 1.1.0 (2024-08-20)
 
 
