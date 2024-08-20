@@ -52,11 +52,13 @@ jobs:
 
       - name: set up git user
         run: |
-          git config --global user.email "643589668@qq.com"
-          git config --global user.name "xigua"
+          git config --global user.email "ci-bot@qq.com"
+          git config --global user.name "ci-bot"
 
       - name: release version
-        run: pnpm exec nx release --skip-publish
+        run: pnpm exec nx release version --skip-publish
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
