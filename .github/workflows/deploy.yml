@@ -3,11 +3,11 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main # 或你希望部署的分支
+      - main1 # 或你希望部署的分支
 
   pull_request:
     branches:
-      - main
+      - main1
 
 jobs:
   deploy:
