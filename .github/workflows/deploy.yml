@@ -5,6 +5,10 @@ on:
     branches:
       - main # 或你希望部署的分支
 
+  pull_request:
+    branches:
+      - main
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -45,6 +49,9 @@ jobs:
 
       - name: List files in the `gh-pages` directory
         run: ls -al ./gh-pages
+
+      - name: update version info
+        run: pnpm exec nx release --skip-publish
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
