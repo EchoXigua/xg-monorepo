@@ -46,12 +46,7 @@
         "currentVersionResolver": "git-tag",
         "specifierSource": "conventional-commits"
       },
-      "conventionalCommits": {
-        "types": {
-          "docs":false,
-          "feat": {}
-        }
-      }
+      "conventionalCommits": true
     },
     "git": {
       "commit": true,
