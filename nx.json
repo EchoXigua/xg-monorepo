@@ -44,10 +44,7 @@
     "version": {
       "conventionalCommits": {
         "types": {
-          "docs": false,
-          "feat": {
-            "semverBump": "patch"
-          }
+          "docs": false
         }
       }
     },
