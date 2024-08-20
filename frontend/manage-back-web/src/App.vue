@@ -1,6 +1,7 @@
 <template>
   <div>manage demo project build~~~~</div>
   <div>test deploy</div>
+  <div>test version update</div>
   <Test></Test>
   <router-link to="/">home</router-link> &nbsp;
   <router-link to="/about">about</router-link>
