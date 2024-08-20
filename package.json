@@ -11,7 +11,7 @@
     "dev:frontend": "pnpm -r --parallel --filter='./frontend/*' run dev",
     "dev:backend": "pnpm -r --parallel --filter='./backend/*' run dev",
     "build:all": "nx run-many --target=build --all --parallel",
-    "build:affected": "nx affected --target=build --parallel",
+    "build:affected": "nx affected --target=build --parallel --base=HEAD~1 --head=HEAD",
     "deploy:frontend": "nx affected --target=deploy --parallel",
     "clear:cache": "nx reset",
     "clear:modules": "rimraf node_modules",

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build": "vue-tsc && vite build",
     "deploy": "vue-tsc && vite build",
     "preview": "vite preview",
     "clear:modules": "rimraf node_modules"
