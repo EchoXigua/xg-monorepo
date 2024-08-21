@@ -27,6 +27,17 @@
         "{projectRoot}/dist/dev"
       ],
       "cache": true
+    },
+   "release-version": {
+      "executor": "@nx/js:release-version",
+      "options": {
+        "skipTag": false,
+        "skipCommit": false,
+        "skipPush": false,
+        "commitMessage": "chore(release): bump version to {version}",
+        "tagPrefix": "v",
+        "push": true
+      }
     }
   },
   "defaultBase": "main",
