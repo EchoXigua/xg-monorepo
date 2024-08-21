@@ -1,3 +1,15 @@
+## 1.2.6 (2024-08-21)
+
+
+### 🚀 Features
+
+- git 拦截 [skip ci] ([853bc08](https://github.com/EchoXigua/xg-monorepo/commit/853bc08))
+
+
+### ❤️  Thank You
+
+- echoxigua
+
 ## 1.2.4 (2024-08-21)
 
 
