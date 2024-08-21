@@ -16,7 +16,8 @@
     "clear:cache": "nx reset",
     "clear:modules": "rimraf node_modules",
     "clear:all": "pnpm -r --parallel run clear:modules && echo 'clear finish'",
-    "prepare": "pnpm -r --filter='./packages/create-project' run build"
+    "prepare": "pnpm -r --filter='./packages/create-project' run build",
+    "commit": "cz"
   },
   "author": "xigua",
   "license": "ISC",
