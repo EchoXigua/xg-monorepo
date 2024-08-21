@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 
-. "$(dirname "$0")/husky.sh"
+echo 'test'
 
 pnpm exec commitlint --edit "$1"
