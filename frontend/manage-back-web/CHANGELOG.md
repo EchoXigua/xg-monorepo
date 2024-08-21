@@ -1,3 +1,35 @@
+## 1.2.4 (2024-08-21)
+
+
+### 🚀 Features
+
+- update nx
+
+- ci
+
+- ci
+
+- test
+
+- update nx.json [skip ci]
+
+- [skip ci]
+
+- version
+
+
+### 🏡 Chore
+
+- **release:** [skip ci]
+
+- **release:** [skip ci]
+
+
+### ❤️  Thank You
+
+- echoxigua
+- EchoXigua
+
 ## 1.2.5 (2024-08-21)
 
 
