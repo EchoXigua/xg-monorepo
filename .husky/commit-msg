@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+. "$(dirname "$0")/../node_modules/husky/husky.sh"
+
+# "$1" 是提交信息文件的路径，Commitlint 将会读取这个文件并进行验证
+pnpm exec --no-install commitlint --edit "$1"

@@ -70,9 +70,11 @@
       }
     },
     "changelog":{
-      "filename": "CHANGELOG.md",
-      "header": "# 项目变更日志",
-      "projectChangelogs": true
+      "projectChangelogs": {
+        "createRelease": "github",
+        "filename": "CHANGELOG.md",
+        "header": "# 项目变更日志"
+      }
     }
   }
 }
