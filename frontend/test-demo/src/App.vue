@@ -1,6 +1,6 @@
 <template>
   <div>test demo project build test~~~</div>
-  <div>test-demo version : 1.2.5</div>
+  <div>子项目独立版本更新</div>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
   <HelloWorld msg="Vite + Vue" />
 </template>
