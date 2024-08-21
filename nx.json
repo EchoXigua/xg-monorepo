@@ -59,12 +59,13 @@
         "currentVersionResolver": "git-tag",
         "specifierSource": "conventional-commits",
         "fallbackCurrentVersionResolver": "disk"
-      },
-      "git": {
-        "commit": true,
-        "tag": true,
-        "commitMessage": "chore(release): {version} [skip ci]"
       }
+    },
+    "git": {
+      "commit": true,
+      "tag": true,
+      "push": true,
+      "commitMessage": "chore(release): {version} [skip ci]"
     },
     "conventionalCommits": {
       "types": {
