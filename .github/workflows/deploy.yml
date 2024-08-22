@@ -56,16 +56,18 @@ jobs:
           git config --global user.name "xg-ci"
           git remote set-url origin https://x-access-token:${{ secrets.XG_CI_TOKEN }}@github.com/EchoXigua/xg-monorepo.git
 
-      - name: release version
-        run: pnpm exec nx release --skip-publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.XG_CI_TOKEN }}
+      # - name: release version
+      #   run: pnpm exec nx release --skip-publish
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.XG_CI_TOKEN }}
 
       - name: git push & git tag
         run: |
+          echo "Some changes" >> test.txt
+          git add . 
+          git commit -m 'test token perm [skip ci]'
           git push origin main
-          git push origin main --tags
-
+      #    git push origin main --tags
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
