@@ -65,7 +65,7 @@ jobs:
         run: |
           echo "Some changes" >> test.txt
           git add . 
-          git commit -m 'test token perm [skip ci]'
+          git commit -m 'fix: test token perm [skip ci]'
           git push origin main
       #    git push origin main --tags
       - name: Deploy to GitHub Pages
