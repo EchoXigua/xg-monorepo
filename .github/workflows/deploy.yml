@@ -59,7 +59,7 @@ jobs:
       - name: release version
         run: pnpm exec nx release --skip-publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.XG_CI_TOKEN }}
 
       - name: git push & git tag
         run: |
