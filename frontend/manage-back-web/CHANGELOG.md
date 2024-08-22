@@ -1,3 +1,15 @@
+## 1.2.7 (2024-08-22)
+
+
+### 🚀 Features
+
+- restore ci ([c07f75e](https://github.com/EchoXigua/xg-monorepo/commit/c07f75e))
+
+
+### ❤️  Thank You
+
+- echoxigua
+
 ## 1.2.6 (2024-08-22)
 
 
