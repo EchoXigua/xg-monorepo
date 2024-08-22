@@ -1,3 +1,31 @@
+## 1.2.7 (2024-08-22)
+
+
+### 🚀 Features
+
+- [skip ci] ([5a50825](https://github.com/EchoXigua/xg-monorepo/commit/5a50825))
+
+- [skip ci] ([974e960](https://github.com/EchoXigua/xg-monorepo/commit/974e960))
+
+- test ci push protect branches ([74e460e](https://github.com/EchoXigua/xg-monorepo/commit/74e460e))
+
+- test ci push perm ([cd012f1](https://github.com/EchoXigua/xg-monorepo/commit/cd012f1))
+
+- test ci perm ([de7e05c](https://github.com/EchoXigua/xg-monorepo/commit/de7e05c))
+
+- update nx.json ([3b32c4a](https://github.com/EchoXigua/xg-monorepo/commit/3b32c4a))
+
+- test token perm ([d20baf2](https://github.com/EchoXigua/xg-monorepo/commit/d20baf2))
+
+- git test ([a327bd3](https://github.com/EchoXigua/xg-monorepo/commit/a327bd3))
+
+- restore ([70586b0](https://github.com/EchoXigua/xg-monorepo/commit/70586b0))
+
+
+### ❤️  Thank You
+
+- echoxigua
+
 ## 1.2.6 (2024-08-21)
 
 
