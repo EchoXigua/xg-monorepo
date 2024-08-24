@@ -1,3 +1,15 @@
+## 1.2.9 (2024-08-24)
+
+
+### 🚀 Features
+
+- 测试公共组件变更对版本号的影响 ([6cdeec6](https://github.com/EchoXigua/xg-monorepo/commit/6cdeec6))
+
+
+### ❤️  Thank You
+
+- echoxigua
+
 ## 1.2.8 (2024-08-22)
 
 
