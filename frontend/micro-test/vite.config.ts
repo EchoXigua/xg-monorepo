@@ -5,7 +5,6 @@ import qiankun from 'vite-plugin-qiankun';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // base: '/xg-monorepo/test/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -13,12 +12,12 @@ export default defineConfig({
   },
   plugins: [
     vue(),
-    qiankun('test-demo', {
+    qiankun('micro-demo', {
       useDevMode: true,
     }),
   ],
   server: {
-    port: 7001,
+    port: 7002,
     headers: {
       'Access-Control-Allow-Origin': '*',
     },

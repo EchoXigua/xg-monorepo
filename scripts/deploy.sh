@@ -3,7 +3,8 @@
 # 定义项目的根目录
 ROOT_DIR=$(pwd)
 
-AFFECTED_PROJECTS=$(npx nx affected:apps --plain)
-npx nx affected --target=build  --plain
+AFFECTED_PROJECTS=$(pnpm exec nx show projects --affected)
+
+echo "受影响的项目: $AFFECTED_PROJECTS"
 
 echo 'deploy finish'

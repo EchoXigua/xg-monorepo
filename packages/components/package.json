@@ -2,6 +2,7 @@
   "name": "@xigua/components",
   "version": "0.0.2",
   "description": "all components are settled here",
+  "private": true,
   "main": "index.ts",
   "module": "index.ts",
   "unpkg": "index.js",

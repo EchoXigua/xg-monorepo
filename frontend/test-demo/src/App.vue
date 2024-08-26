@@ -5,10 +5,19 @@
   <div>test-demo 项目文件变更</div>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
   <HelloWorld msg="Vite + Vue" />
+  <router-link to="/">test home</router-link>
+  <router-link to="/about1">test about</router-link>
+  <hr />
+  <router-view></router-view>
 </template>
 
 <script setup lang="ts">
-import HelloWorld from '../components/HelloWorld.vue';
+import HelloWorld from '@/components/HelloWorld.vue';
+import { onBeforeUnmount } from 'vue';
+
+onBeforeUnmount(() => {
+  console.log('卸载~~~');
+});
 </script>
 
 <style lang="scss" scoped></style>
