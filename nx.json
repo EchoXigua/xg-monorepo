@@ -40,7 +40,7 @@
     }
   ],
   "release": {
-    "projects": ["frontend/*"],
+    "projects": ["frontend/*","packages/*"],
     "projectsRelationship": "independent",
     "version": {
       "independent": true,
@@ -73,7 +73,8 @@
         "createRelease": "github",
         "filename": "CHANGELOG.md",
         "header": "# 项目变更日志"
-      }
+      },
+      "automaticFromRef": true
     }
   }
 }
