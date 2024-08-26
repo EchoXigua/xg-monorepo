@@ -1,3 +1,20 @@
+## 1.2.8 (2024-08-26)
+
+
+### 🚀 Features
+
+- 公共组件变更正常 ([1d0811d](https://github.com/EchoXigua/xg-monorepo/commit/1d0811d))
+
+
+### 🧱 Updated Dependencies
+
+- Updated @xigua/components to 0.0.2
+
+
+### ❤️  Thank You
+
+- echoxigua
+
 ## 1.2.7 (2024-08-22)
 
 
