@@ -14,12 +14,9 @@ const routes: RouteRecordRaw[] = [
   },
 ];
 
-console.log('router base', qiankunWindow.__POWERED_BY_QIANKUN__);
-
 const router = createRouter({
   history: createWebHistory(
-    // qiankunWindow.__POWERED_BY_QIANKUN__ ? 'test-demo' : '',
-    'test-demo',
+    qiankunWindow.__POWERED_BY_QIANKUN__ ? import.meta.env.VITE_PKG_NAME : '',
   ),
   routes,
 });

@@ -12,7 +12,7 @@
     "dev:backend": "pnpm -r --parallel --filter='./backend/*' run dev",
     "build:all": "nx run-many --target=build --all --parallel",
     "build:affected": "nx affected --target=build --parallel --base=HEAD~1 --head=HEAD",
-    "deploy:frontend": "nx affected --target=deploy --parallel",
+    "deploy:frontend:github": "nx affected --target=deploy:github --parallel",
     "clear:cache": "nx reset",
     "clear:modules": "rimraf node_modules",
     "clear:all": "pnpm -r --parallel run clear:modules && echo 'clear finish'",

@@ -16,7 +16,7 @@ const render = () => {
 
 const initQianKun = () => {
   renderWithQiankun({
-    mount(props) {
+    mount() {
       //   const { container } = props;
       render();
     },
