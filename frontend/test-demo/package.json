@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "deploy": "vue-tsc && vite build",
+    "deploy:github": "vue-tsc && vite build --mode github",
     "preview": "vite preview",
     "clear:modules": "rimraf node_modules"
   },

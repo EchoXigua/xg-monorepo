@@ -1,0 +1,1 @@
+npm run start:$RUN_ENV

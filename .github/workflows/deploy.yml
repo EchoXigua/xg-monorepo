@@ -34,7 +34,7 @@ jobs:
         run: pnpm install
 
       - name: Build project
-        run: pnpm run deploy:frontend  --base=HEAD~1 --head=HEAD # 替换为你的构建命令，例如 `nx build`
+        run: pnpm run deploy:frontend:github  --base=HEAD~1 --head=HEAD # 替换为你的构建命令，例如 `nx build`
 
       - name: Make deploy script executable
         run: chmod +x ./scripts/deploy-github.sh

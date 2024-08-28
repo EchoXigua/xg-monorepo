@@ -107,7 +107,13 @@ const FRAMEWORKS: Framework[] = [
     name: 'nest',
     color: magenta,
     display: 'Nest',
-    variants: [],
+    variants: [
+      {
+        name: 'nest',
+        display: 'TypeScript',
+        color: yellow,
+      },
+    ],
   },
   {
     name: 'others',
