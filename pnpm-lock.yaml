@@ -150,6 +150,9 @@ importers:
       ts-node:
         specifier: ^10.9.1
         version: 10.9.2(@swc/core@1.7.14)(@types/node@20.14.15)(typescript@5.5.4)
+      tsx:
+        specifier: ^4.17.0
+        version: 4.17.0
       typescript:
         specifier: ^5.5.4
         version: 5.5.4
@@ -269,6 +272,45 @@ importers:
         version: 2.0.0(typescript@5.5.4)
 
   packages/xg-request: {}
+
+  sdk/browser:
+    dependencies:
+      '@xigua-monitor/core':
+        specifier: workspace:^
+        version: link:../core
+      '@xigua-monitor/utils':
+        specifier: workspace:^
+        version: link:../utils
+    devDependencies:
+      '@xigua-monitor/types':
+        specifier: workspace:^
+        version: link:../types
+
+  sdk/core:
+    dependencies:
+      '@xigua-monitor/utils':
+        specifier: workspace:^
+        version: link:../utils
+
+  sdk/types: {}
+
+  sdk/utils: {}
+
+  sdk/vue:
+    dependencies:
+      '@xigua-monitor/browser':
+        specifier: workspace:^
+        version: link:../browser
+      '@xigua-monitor/core':
+        specifier: workspace:^
+        version: link:../core
+      '@xigua-monitor/utils':
+        specifier: workspace:^
+        version: link:../utils
+    devDependencies:
+      '@xigua-monitor/types':
+        specifier: workspace:^
+        version: link:../types
 
   shared/constants: {}
 

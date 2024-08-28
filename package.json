@@ -17,7 +17,7 @@
     "clear:cache": "nx reset",
     "clear:modules": "rimraf node_modules",
     "clear:all": "pnpm -r --parallel run clear:modules && echo 'clear finish'",
-    "prepare": "husky && pnpm  --filter='./packages/create-project' run build",
+    "prepare": "husky || pnpm  --filter='./packages/create-project' run build",
     "commit": "cz",
     "commit-test": "echo 'hello'"
   },
@@ -73,6 +73,7 @@
     "rimraf": "^6.0.1",
     "ts-loader": "^9.4.3",
     "ts-node": "^10.9.1",
+    "tsx": "^4.17.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.0",
     "vite-plugin-qiankun": "^1.0.15"
