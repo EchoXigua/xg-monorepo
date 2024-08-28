@@ -1,0 +1,1 @@
+export const userSelect = ['account','email','phone','role','username','id','loginIp','loginTime']
