@@ -1,6 +1,6 @@
 {
   "name": "manage-back-web",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@xigua/components": "workspace:^",
+    "@xigua/components": "0.0.3",
     "@xigua/utils": "workspace:^"
   }
 }

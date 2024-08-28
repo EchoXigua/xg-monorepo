@@ -1,6 +1,6 @@
 {
   "name": "@xigua/components",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "all components are settled here",
   "private": true,
   "main": "index.ts",

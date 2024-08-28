@@ -196,7 +196,7 @@ importers:
   frontend/manage-back-web:
     dependencies:
       '@xigua/components':
-        specifier: workspace:^
+        specifier: 0.0.3
         version: link:../../packages/components
       '@xigua/utils':
         specifier: workspace:^
@@ -211,7 +211,7 @@ importers:
   frontend/micro-monitor:
     dependencies:
       xg-request:
-        specifier: workspace:^
+        specifier: 1.0.1
         version: link:../../packages/xg-request
     devDependencies:
       vue-tsc:

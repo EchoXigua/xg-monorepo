@@ -1,3 +1,24 @@
+## 1.2.9 (2024-08-28)
+
+
+### 🚀 Features
+
+- 接入qiankun ([86d2f49](https://github.com/EchoXigua/xg-monorepo/commit/86d2f49))
+
+- 配置环境变量文件 ([7cd29ae](https://github.com/EchoXigua/xg-monorepo/commit/7cd29ae))
+
+- 监控项目搭建 ([fa85016](https://github.com/EchoXigua/xg-monorepo/commit/fa85016))
+
+
+### 🧱 Updated Dependencies
+
+- Updated @xigua/components to 0.0.3
+
+
+### ❤️  Thank You
+
+- echoxigua
+
 ## 1.2.8 (2024-08-26)
 
 
