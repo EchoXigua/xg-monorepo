@@ -11,5 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "@xigua-monitor/utils": "workspace:^"
+  },
+  "devDependencies": {
+    "@xigua-monitor/types": "workspace:^"
   }
 }

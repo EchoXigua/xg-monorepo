@@ -291,6 +291,10 @@ importers:
       '@xigua-monitor/utils':
         specifier: workspace:^
         version: link:../utils
+    devDependencies:
+      '@xigua-monitor/types':
+        specifier: workspace:^
+        version: link:../types
 
   sdk/types: {}
 
