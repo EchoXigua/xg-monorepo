@@ -5,8 +5,8 @@
   "private": true,
   "keywords": [],
   "scripts": {
-    "create": "pnpm  --filter='./packages/create-project' run create --targetDir=frontend",
-    "create:bk": "pnpm  --filter='./packages/create-project' run create --targetDir=backend",
+    "create": "pnpm  --filter='./packages/create-project' run create",
+    "create:ft": "pnpm  --filter='./packages/create-project' run create --targetDir=frontend",
     "test": "pnpm -C backend/manage-back run dev",
     "dev": "pnpm -r --parallel --filter './frontend/*' --filter './backend/*' run dev",
     "dev:frontend": "pnpm -r --parallel --filter='./frontend/*' run dev",

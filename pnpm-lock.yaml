@@ -318,6 +318,16 @@ importers:
 
   shared/utils: {}
 
+  test/test-monitor:
+    dependencies:
+      '@xigua-monitor/vue':
+        specifier: workspace:^
+        version: link:../../sdk/vue
+    devDependencies:
+      vue-tsc:
+        specifier: ^2.0.19
+        version: 2.0.29(typescript@5.5.4)
+
 packages:
 
   /@ampproject/remapping@2.3.0:
