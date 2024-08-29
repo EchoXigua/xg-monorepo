@@ -1,5 +1,7 @@
 packages:
-  - "frontend/*"
-  - "backend/*"
-  - "packages/*"
-  - "shared/*"
+  - 'frontend/*'
+  - 'backend/*'
+  - 'packages/*'
+  - 'shared/*'
+  - 'sdk/*'
+  - 'test/*'
