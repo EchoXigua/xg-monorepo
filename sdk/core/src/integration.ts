@@ -1,7 +1,7 @@
 import type {
-  //   Client,
-  //   Event,
-  //   EventHint,
+  Client,
+  Event,
+  EventHint,
   Integration,
   IntegrationFn,
   //   Options,
