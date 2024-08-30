@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { BrowserOptions } from '@sentry/browser';
+import type { BrowserOptions } from '@xigua-monitor/browser';
 
 /**
  * 定义了一个 Vue 接口，以便能够同时兼容 Vue 2 和 Vue 3

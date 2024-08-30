@@ -66,9 +66,34 @@ export type FractionUnit = 'ratio' | 'percent';
  */
 export type NoneUnit = '' | 'none';
 
-// See https://github.com/microsoft/TypeScript/issues/29729#issuecomment-1082546550
-// 这个类型允许你在使用预定义的字符串类型（如上面的 DurationUnit、InformationUnit 等）时，也可以提供自定义的字符串值。
-// 这样做的目的是在保持类型安全的同时，允许开发者定义自己的单位。
+/**
+ * 这个类型允许你在使用预定义的字符串类型（如上面的 DurationUnit、InformationUnit 等）时，也可以提供自定义的字符串值。
+ * 这样做的目的是在保持类型安全的同时，允许开发者定义自己的单位。
+ * See https://github.com/microsoft/TypeScript/issues/29729#issuecomment-1082546550
+ *
+ * T extends string:
+ * 这部分表示 T 是一个字符串类型的子类型。T 可以是一个字符串字面量类型，例如 'foo' 或 'bar'
+ *
+ * Omit<T, T>：
+ * Omit<T, T> 是 TypeScript 提供的工具类型，用于从类型 T 中排除 T 中的所有属性。
+ * 在这里，它的作用是生成一个空的对象类型，因为它移除了 T 中的所有属性。
+ * 在这个上下文中，Omit<T, T> 实际上会被解析为 never 类型。
+ *
+ * 最终的类型定义是 T | never,在 TypeScript 中，never 类型表示没有可能的值。
+ * 结合 T，这个定义变成了 T 或者任何其他字符串值
+ *
+ * @example
+ * type Color = 'red' | 'green' | 'blue';
+   type MyColor = LiteralUnion<Color>;
+   const color1: MyColor = 'red'; // 合法
+   const color2: MyColor = 'green'; // 合法   
+   const color3: MyColor = 'yellow'; // 合法，任何字符串都是合法的
+
+   type MyUnion = LiteralUnion<{ a: number }>; // 报错
+   type MyUnion2 = LiteralUnion<number[]>; // 报错
+
+   T 必须是 string 的子集。
+ */
 type LiteralUnion<T extends string> = T | Omit<T, T>;
 
 /**

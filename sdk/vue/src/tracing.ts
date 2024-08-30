@@ -2,9 +2,9 @@ import {
   SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN,
   getActiveSpan,
   startInactiveSpan,
-} from '@sentry/browser';
-import type { Span } from '@sentry/types';
-import { logger, timestampInSeconds } from '@sentry/utils';
+} from '@xigua-monitor/browser';
+import type { Span } from '@xigua-monitor/types';
+import { logger, timestampInSeconds } from '@xigua-monitor/utils';
 
 import { DEFAULT_HOOKS } from './constants';
 import { DEBUG_BUILD } from './debug-build';

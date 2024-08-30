@@ -43,3 +43,16 @@ export type {
 } from './measurement';
 export type { Thread } from './thread';
 export type { User } from './user';
+
+export type {
+  // HandlerDataFetch,
+  // HandlerDataXhr,
+  // HandlerDataDom,
+  // HandlerDataConsole,
+  // HandlerDataHistory,
+  // HandlerDataError,
+  // HandlerDataUnhandledRejection,
+  ConsoleLevel,
+  // SentryXhrData,
+  // SentryWrappedXMLHttpRequest,
+} from './instrument';
