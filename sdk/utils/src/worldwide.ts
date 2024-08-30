@@ -1,6 +1,7 @@
 import type { Client, MetricsAggregator, Scope } from '@xigua-monitor/types';
 
 import type { SdkSource } from './env';
+import { SDK_VERSION } from './version';
 
 interface SentryCarrier {
   acs?: any;
@@ -78,3 +79,31 @@ export type InternalGlobal = {
 
 /** 获取当前JavaScript运行时的全局对象 */
 export const GLOBAL_OBJ = globalThis as unknown as InternalGlobal;
+
+/**
+ * 这个函数用于管理全局单例实例的通用工具，它确保在全局环境中某个特定对象（如 Sentry）上只有一个实例存在
+ *
+ * If the singleton doesn't already exist in `__SENTRY__`, it will be created using the given factory
+ * function and added to the `__SENTRY__` object.
+ *
+ * @param name 全局单例在 __SENTRY__ 对象上的名称
+ * @param creator 这是一个工厂函数，用于创建单例对象。如果在 __SENTRY__ 对象中不存在该单例实例，则会调用这个函数生成一个新的实例。
+ * @param obj 它指定了要查找 __SENTRY__ 的全局对象。如果未提供，默认为 GLOBAL_OBJ。
+ * @returns 返回全局单例对象
+ */
+export function getGlobalSingleton<T>(
+  name: keyof SentryCarrier,
+  creator: () => T,
+  obj?: unknown,
+): T {
+  // 获取全局对象
+  const gbl = (obj || GLOBAL_OBJ) as InternalGlobal;
+  // 初始化 __SENTRY__
+  const __SENTRY__ = (gbl.__SENTRY__ = gbl.__SENTRY__ || {});
+  // 为当前 SDK 版本创建或获取一个版本化的承载器，不存在的默认为空对象
+  const versionedCarrier = (__SENTRY__[SDK_VERSION] =
+    __SENTRY__[SDK_VERSION] || {});
+
+  // 返回当前版本的中对应名称的单例，如果不存在调用 creator 函数创建新的单例实例，并将其存储，然后返回该实例。
+  return versionedCarrier[name] || (versionedCarrier[name] = creator());
+}
