@@ -298,7 +298,11 @@ importers:
 
   sdk/types: {}
 
-  sdk/utils: {}
+  sdk/utils:
+    devDependencies:
+      '@xigua-monitor/types':
+        specifier: workspace:^
+        version: link:../types
 
   sdk/vue:
     dependencies:
