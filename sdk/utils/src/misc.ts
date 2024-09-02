@@ -1,3 +1,10 @@
+import type {
+  Event,
+  Exception,
+  Mechanism,
+  StackFrame,
+} from '@xigua-monitor/types';
+
 import { GLOBAL_OBJ } from './worldwide';
 
 interface CryptoInternal {
@@ -102,4 +109,32 @@ export function uuid4(): string {
       ).toString(16),
     // 将最终的数字转换为十六进制字符串
   );
+}
+
+function getFirstException(event: Event): Exception | undefined {
+  return event.exception && event.exception.values
+    ? event.exception.values[0]
+    : undefined;
+}
+
+/**
+ * Extracts either message or type+value from an event that can be used for user-facing logs
+ * @returns event's description
+ */
+export function getEventDescription(event: Event): string {
+  const { message, event_id: eventId } = event;
+  if (message) {
+    return message;
+  }
+
+  const firstException = getFirstException(event);
+  if (firstException) {
+    if (firstException.type && firstException.value) {
+      return `${firstException.type}: ${firstException.value}`;
+    }
+    return (
+      firstException.type || firstException.value || eventId || '<unknown>'
+    );
+  }
+  return eventId || '<unknown>';
 }

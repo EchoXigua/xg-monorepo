@@ -7,5 +7,8 @@ export * from './object';
 export * from './baggage';
 export * from './envelope';
 export * from './dsn';
+export * from './supports';
+export * from './stacktrace';
+export * from './string';
 
 export * from './version';

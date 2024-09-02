@@ -42,3 +42,35 @@ export function isPlainObject(wat: unknown): wat is Record<string, unknown> {
 export function isString(wat: unknown): wat is string {
   return isBuiltin(wat, 'String');
 }
+
+/**
+ * Checks whether given value's type is an regexp
+ * {@link isRegExp}.
+ *
+ * @param wat A value to be checked.
+ * @returns A boolean representing the result.
+ */
+export function isRegExp(wat: unknown): wat is RegExp {
+  return isBuiltin(wat, 'RegExp');
+}
+
+interface VueViewModel {
+  // Vue3
+  __isVue?: boolean;
+  // Vue2
+  _isVue?: boolean;
+}
+/**
+ * Checks whether given value's type is a Vue ViewModel.
+ *
+ * @param wat A value to be checked.
+ * @returns A boolean representing the result.
+ */
+export function isVueViewModel(wat: unknown): boolean {
+  // Not using Object.prototype.toString because in Vue 3 it would read the instance's Symbol(Symbol.toStringTag) property.
+  return !!(
+    typeof wat === 'object' &&
+    wat !== null &&
+    ((wat as VueViewModel).__isVue || (wat as VueViewModel)._isVue)
+  );
+}
