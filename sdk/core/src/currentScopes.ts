@@ -31,39 +31,49 @@ export function getIsolationScope(): Scope {
 }
 
 /**
- * Creates a new scope with and executes the given operation within.
- * The scope is automatically removed once the operation
- * finishes or throws.
+ * 这个函数用于在 Sentry 中管理 scope（作用域）
+ * 
+ * Scope 是 Sentry 用来管理上下文信息的核心概念，在不同的作用域中可以保存不同的状态信息，
+ * 比如用户信息、标签、额外数据等。这些作用域可以嵌套，并且可以用于组织 Sentry 事件和数据。
+
+ * 这个形式下，函数创建一个新的 Scope 并将其设为活动的 Scope，随后在这个 Scope 上下文中执行传入的 callback
  */
 export function withScope<T>(callback: (scope: Scope) => T): T;
 /**
- * Set the given scope as the active scope in the callback.
+ * 这个形式允许传入一个现有的 Scope，如果传入了 undefined，则与第一个形式的行为相同，即创建新的 Scope。
  */
 export function withScope<T>(
   scope: Scope | undefined,
   callback: (scope: Scope) => T,
 ): T;
 /**
- * Either creates a new active scope, or sets the given scope as active scope in the given callback.
+ * 要么创建一个新的活动范围，要么在给定的回调中将给定的范围设置为活动范围。
  */
 export function withScope<T>(
   ...rest:
     | [callback: (scope: Scope) => T]
     | [scope: Scope | undefined, callback: (scope: Scope) => T]
 ): T {
+  // 获取全局载体
   const carrier = getMainCarrier();
+  // 获取异步上下文策略
   const acs = getAsyncContextStrategy(carrier);
 
   // If a scope is defined, we want to make this the active scope instead of the default one
+  // 如果定义了作用域，我们希望将其作为活动作用域，而不是默认作用域
   if (rest.length === 2) {
+    // rest等于2 说明传入了两个参数
     const [scope, callback] = rest;
 
     if (!scope) {
+      // 作用域不存在，与创建新 Scope 的逻辑一致。
       return acs.withScope(callback);
     }
 
+    // 将传入的 Scope 设置为当前活动的 Scope，并在其上下文中执行回调
     return acs.withSetScope(scope, callback);
   }
 
+  // 只传入了一个参数（回调）， 创建新的 Scope，并在其上下文中执行回调。
   return acs.withScope(rest[0]);
 }

@@ -121,13 +121,13 @@ export function startInactiveSpan(options: StartSpanOptions): Span {
 }
 
 /**
- * This converts StartSpanOptions to SentrySpanArguments.
- * For the most part (for now) we accept the same options,
- * but some of them need to be transformed.
+ * 这个函数的目的是将输入的 StartSpanOptions 对象转换为符合 Sentry 所需的 SentrySpanArguments 格式。
+ * 这涉及一些属性的重命名（如 startTime -> startTimestamp）以及一些属性的条件性添加（如 isStandalone）。
  */
 function parseSentrySpanArguments(
   options: StartSpanOptions,
 ): SentrySpanArguments {
+  // 将 experimental种的standalone 属性映射到返回的对象种
   const exp = options.experimental || {};
   const initialCtx: SentrySpanArguments = {
     isStandalone: exp.standalone,
@@ -135,14 +135,17 @@ function parseSentrySpanArguments(
   };
 
   if (options.startTime) {
+    // 如果 options 对象中包含 startTime 属性，该属性将被转换为 startTimestamp
     const ctx: SentrySpanArguments & { startTime?: SpanTimeInput } = {
       ...initialCtx,
     };
     ctx.startTimestamp = spanTimeInputToSeconds(options.startTime);
+    // startTime 属性被删除，因为它已被替换为 startTimestamp。
     delete ctx.startTime;
     return ctx;
   }
 
+  //  options 中没有 startTime 属性，则直接返回初始的 initialCtx 对象
   return initialCtx;
 }
 
@@ -202,34 +205,66 @@ function _startRootSpan(
  * @param callback Execution context in which the provided span will be active. Is passed the newly forked scope.
  * @returns the value returned from the provided callback function.
  */
+/**
+ * 这个函数用于管理与 Sentry 监控相关的「活动 Span」上下文。
+ * 它允许你在某个回调函数执行时，将一个 Span 设置为当前活动的 Span，确保在该回调上下文中所有新创建的 Spans 都与这个 Span 相关联。
+ *
+ * @param span 传入的 Span 将被设置为当前活动的 Span，在回调 callback 的执行过程中，
+ * 所有新创建的 Span 都将被视为这个 Span 的子 Span。
+ * 如果传入 null，意味着在回调执行期间新创建的 Spans 不会关联到任何父 Span
+ *
+ * @param callback 它将在 withActiveSpan 函数设置了新的 Span 上下文后被调用
+ * @returns
+ */
 export function withActiveSpan<T>(
   span: Span | null,
   callback: (scope: Scope) => T,
 ): T {
+  // 获取当前的 acs 对象
   const acs = getAcs();
   if (acs.withActiveSpan) {
+    // 如果 acs 对象支持 withActiveSpan 方法，则使用acs 对象的方法
     return acs.withActiveSpan(span, callback);
   }
 
+  // 默认实现
   return withScope((scope) => {
+    // 在新的 Scope 中设置 Span
     _setSpanForScope(scope, span || undefined);
     return callback(scope);
   });
 }
 
+/**
+ * 这个函数用于获取给定 Scope 的父级 Span
+ * 在 Sentry 中，Span 是用于跟踪操作和事件的基本单元，通过 Span 可以组织和管理一系列相关操作。
+ * Scope 则是一个包含上下文信息的对象，可以包含当前活跃的 Span。
+ *
+ * @param scope
+ * @returns
+ */
 function getParentSpan(scope: Scope): SentrySpan | undefined {
+  // 获取的当前 Scope 中的 Span
   const span = _getSpanForScope(scope) as SentrySpan | undefined;
 
+  // 如果 Span 不存在，直接返回 undefined，表示没有可用的父 Span
   if (!span) {
     return undefined;
   }
 
+  // 获取的当前 Sentry 客户端实例
   const client = getClient();
+  // 获取客户端实例的配置项，不存在的为空对象
   const options: Partial<ClientOptions> = client ? client.getOptions() : {};
+
+  // 检查配置种是否设置了 parentSpanIsAlwaysRootSpan，
+  // 这个选项指示是否应该总是将根 Span 作为父 Span。
   if (options.parentSpanIsAlwaysRootSpan) {
+    // 获取根 Span 并将其作为父 Span 返回
     return getRootSpan(span) as SentrySpan;
   }
 
+  // 如果没有特殊配置，直接返回当前的 Span 作为父 Span
   return span;
 }
 

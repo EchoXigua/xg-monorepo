@@ -31,3 +31,14 @@ function isBuiltin(wat: unknown, className: string): boolean {
 export function isPlainObject(wat: unknown): wat is Record<string, unknown> {
   return isBuiltin(wat, 'Object');
 }
+
+/**
+ * Checks whether given value's type is a string
+ * {@link isString}.
+ *
+ * @param wat A value to be checked.
+ * @returns A boolean representing the result.
+ */
+export function isString(wat: unknown): wat is string {
+  return isBuiltin(wat, 'String');
+}

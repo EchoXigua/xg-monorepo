@@ -7,7 +7,7 @@ import type {
   SpanOrigin,
   SpanStatus,
   SpanTimeInput,
-  // TraceContext,
+  TraceContext,
 } from '@xigua-monitor/types';
 import {
   addNonEnumerableProperty,
@@ -316,4 +316,67 @@ export function getActiveSpan(): Span | undefined {
   // acs 中没有 getActiveSpan 方法，那么函数会回退到使用 _getSpanForScope(getCurrentScope())。
   // 这表示使用当前 scope 中的 span 作为回退方案。
   return _getSpanForScope(getCurrentScope());
+}
+
+/**
+ * Convert a span to a trace context, which can be sent as the `trace` context in an event.
+ * By default, this will only include trace_id, span_id & parent_span_id.
+ * If `includeAllData` is true, it will also include data, op, status & origin.
+ */
+/**
+ * 将一个 Span 对象转换为 TraceContext，可以作为事件中的 trace 上下文发送
+ *
+ * @param span
+ * @returns 返回一个 TraceContext 对象，其中包含从 Span 提取的字段。
+ */
+export function spanToTransactionTraceContext(span: Span): TraceContext {
+  // 获取 Span 的上下文，提取 spanId 和 traceId 并分别命名为 span_id 和 trace_id
+  const { spanId: span_id, traceId: trace_id } = span.spanContext();
+  // 将 Span 转换为 JSON 格式，从中提取 data、op、parent_span_id、status 和 origin
+  const { data, op, parent_span_id, status, origin } = spanToJSON(span);
+
+  // 移除对象中值为 undefined 的键，返回最终的 TraceContext 对象
+  return dropUndefinedKeys({
+    parent_span_id,
+    span_id,
+    trace_id,
+    data,
+    op,
+    status,
+    origin,
+  });
+}
+
+/**
+ * 返回给定 Span 及其所有子孙的数组
+ * Returns an array of the given span and all of its descendants.
+ */
+export function getSpanDescendants(span: SpanWithPotentialChildren): Span[] {
+  // 使用 Set 结构来存储 Span 对象，确保不会有重复的 Span
+  const resultSet = new Set<Span>();
+
+  // 通过递归的方式遍历 Span 的子节点，将它们添加到结果集合中
+  function addSpanChildren(span: SpanWithPotentialChildren): void {
+    // 已经存在,说明存在循环引用，立即返回以避免无限递归
+    if (resultSet.has(span)) {
+      return;
+      // 这里需要忽略未采样的 span
+    } else if (spanIsSampled(span)) {
+      resultSet.add(span);
+      // 获取子 span
+      const childSpans = span[CHILD_SPANS_FIELD]
+        ? Array.from(span[CHILD_SPANS_FIELD])
+        : [];
+
+      // 继续递归其子 span
+      for (const childSpan of childSpans) {
+        addSpanChildren(childSpan);
+      }
+    }
+  }
+
+  addSpanChildren(span);
+
+  // 将 Set 转换为数组并返回，包含所有的 Span 及其子孙
+  return Array.from(resultSet);
 }
