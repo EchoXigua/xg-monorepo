@@ -2,7 +2,7 @@ import type {
   // CaptureContext,
   // CheckIn,
   // Event,
-  // EventHint,
+  EventHint,
   // EventProcessor,
   // Extra,
   // Extras,
@@ -190,4 +190,15 @@ export function captureSession(end: boolean = false): void {
  */
 export function lastEventId(): string | undefined {
   return getIsolationScope().lastEventId();
+}
+
+/**
+ * Captures a manually created event and sends it to Sentry.
+ *
+ * @param event The event to send to Sentry.
+ * @param hint Optional additional data to attach to the Sentry event.
+ * @returns the id of the captured event.
+ */
+export function captureEvent(event: Event, hint?: EventHint): string {
+  return getCurrentScope().captureEvent(event, hint);
 }

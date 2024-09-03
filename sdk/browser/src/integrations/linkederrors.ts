@@ -1,6 +1,6 @@
-import { defineIntegration } from '@sentry/core';
-import type { IntegrationFn } from '@sentry/types';
-import { applyAggregateErrorsToEvent } from '@sentry/utils';
+import { defineIntegration } from '@xigua-monitor/core';
+import type { IntegrationFn } from '@xigua-monitor/types';
+import { applyAggregateErrorsToEvent } from '@xigua-monitor/utils';
 import { exceptionFromError } from '../eventbuilder';
 
 interface LinkedErrorsOptions {
@@ -39,4 +39,6 @@ const _linkedErrorsIntegration = ((options: LinkedErrorsOptions = {}) => {
 /**
  * Aggregrate linked errors in an event.
  */
-export const linkedErrorsIntegration = defineIntegration(_linkedErrorsIntegration);
+export const linkedErrorsIntegration = defineIntegration(
+  _linkedErrorsIntegration,
+);

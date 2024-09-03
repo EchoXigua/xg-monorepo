@@ -9,12 +9,14 @@ import {
   addFetchEndInstrumentationHandler,
   addFetchInstrumentationHandler,
 } from './fetch';
+import { addGlobalErrorInstrumentationHandler } from './globalError';
+import { addGlobalUnhandledRejectionInstrumentationHandler } from './globalUnhandledRejection';
 
 export {
   addConsoleInstrumentationHandler,
   addFetchInstrumentationHandler,
-  // addGlobalErrorInstrumentationHandler,
-  // addGlobalUnhandledRejectionInstrumentationHandler,
+  addGlobalErrorInstrumentationHandler,
+  addGlobalUnhandledRejectionInstrumentationHandler,
   addHandler,
   maybeInstrument,
   triggerHandlers,

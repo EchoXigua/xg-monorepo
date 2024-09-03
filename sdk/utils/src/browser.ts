@@ -210,3 +210,14 @@ export function getComponentName(elem: unknown): string | null {
 
   return null;
 }
+
+/**
+ * A safe form of location.href
+ */
+export function getLocationHref(): string {
+  try {
+    return WINDOW.document.location.href;
+  } catch (oO) {
+    return '';
+  }
+}

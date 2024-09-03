@@ -20,5 +20,8 @@ export * from './clientreport';
 export * from './browser';
 export * from './url';
 export * from './severity';
+export * from './ratelimit';
+export * from './promisebuffer';
+export * from './aggregate-errors';
 
 export * from './version';

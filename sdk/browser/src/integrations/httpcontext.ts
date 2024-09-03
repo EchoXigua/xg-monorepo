@@ -1,4 +1,4 @@
-import { defineIntegration } from '@sentry/core';
+import { defineIntegration } from '@xigua-monitor/core';
 import { WINDOW } from '../helpers';
 
 /**
@@ -15,7 +15,9 @@ export const httpContextIntegration = defineIntegration(() => {
       }
 
       // grab as much info as exists and add it to the event
-      const url = (event.request && event.request.url) || (WINDOW.location && WINDOW.location.href);
+      const url =
+        (event.request && event.request.url) ||
+        (WINDOW.location && WINDOW.location.href);
       const { referrer } = WINDOW.document || {};
       const { userAgent } = WINDOW.navigator || {};
 

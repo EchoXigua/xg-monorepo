@@ -7,7 +7,7 @@ export {
   // captureCheckIn,
   // withMonitor,
   captureException,
-  // captureEvent,
+  captureEvent,
   // captureMessage,
   lastEventId,
   // close,
@@ -59,5 +59,6 @@ export {
   getEnvelopeEndpointWithUrlEncodedAuth,
   getReportDialogEndpoint,
 } from './api';
+export { createTransport } from './transports/base';
 
 export { SDK_VERSION } from '@xigua-monitor/utils';
