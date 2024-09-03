@@ -4,10 +4,15 @@ import {
   resetInstrumentationHandlers,
   triggerHandlers,
 } from './handlers';
+import { addConsoleInstrumentationHandler } from './console';
+import {
+  addFetchEndInstrumentationHandler,
+  addFetchInstrumentationHandler,
+} from './fetch';
 
 export {
-  // addConsoleInstrumentationHandler,
-  // addFetchInstrumentationHandler,
+  addConsoleInstrumentationHandler,
+  addFetchInstrumentationHandler,
   // addGlobalErrorInstrumentationHandler,
   // addGlobalUnhandledRejectionInstrumentationHandler,
   addHandler,
@@ -15,5 +20,5 @@ export {
   triggerHandlers,
   // Only exported for tests
   resetInstrumentationHandlers,
-  // addFetchEndInstrumentationHandler,
+  addFetchEndInstrumentationHandler,
 };

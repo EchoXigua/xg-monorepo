@@ -3,13 +3,15 @@ import type { WrappedFunction } from '@xigua-monitor/types';
 import { DEBUG_BUILD } from './debug-build';
 import { logger } from './logger';
 import {
-  // isElement,
-  // isError,
-  // isEvent,
-  // isInstanceOf,
+  isElement,
+  isError,
+  isEvent,
+  isInstanceOf,
   isPlainObject,
-  // isPrimitive,
+  isPrimitive,
 } from './is';
+import { truncate } from './string';
+import { htmlTreeAsString } from './browser';
 
 /**
  * 函数的主要作用是用一个包装版本替代对象中的某个方法，同时保留原始方法，
@@ -75,6 +77,20 @@ export function addNonEnumerableProperty(
         obj,
       );
   }
+}
+
+/**
+ * Encodes given object into url-friendly format
+ *
+ * @param object An object that contains serializable values
+ * @returns string Encoded
+ */
+export function urlEncode(object: { [key: string]: any }): string {
+  return Object.keys(object)
+    .map(
+      (key) => `${encodeURIComponent(key)}=${encodeURIComponent(object[key])}`,
+    )
+    .join('&');
 }
 
 /**
@@ -209,4 +225,123 @@ export function getOriginalFunction(
   func: WrappedFunction,
 ): WrappedFunction | undefined {
   return func.__sentry_original__;
+}
+
+/**
+ * Transforms any `Error` or `Event` into a plain object with all of their enumerable properties, and some of their
+ * non-enumerable properties attached.
+ *
+ * @param value Initial source that we have to transform in order for it to be usable by the serializer
+ * @returns An Event or Error turned into an object - or the value argurment itself, when value is neither an Event nor
+ *  an Error.
+ */
+export function convertToPlainObject<V>(value: V):
+  | {
+      [ownProps: string]: unknown;
+      type: string;
+      target: string;
+      currentTarget: string;
+      detail?: unknown;
+    }
+  | {
+      [ownProps: string]: unknown;
+      message: string;
+      name: string;
+      stack?: string;
+    }
+  | V {
+  if (isError(value)) {
+    return {
+      message: value.message,
+      name: value.name,
+      stack: value.stack,
+      ...getOwnProperties(value),
+    };
+  } else if (isEvent(value)) {
+    const newObj: {
+      [ownProps: string]: unknown;
+      type: string;
+      target: string;
+      currentTarget: string;
+      detail?: unknown;
+    } = {
+      type: value.type,
+      target: serializeEventTarget(value.target),
+      currentTarget: serializeEventTarget(value.currentTarget),
+      ...getOwnProperties(value),
+    };
+
+    if (
+      typeof CustomEvent !== 'undefined' &&
+      isInstanceOf(value, CustomEvent)
+    ) {
+      newObj.detail = value.detail;
+    }
+
+    return newObj;
+  } else {
+    return value;
+  }
+}
+
+/**
+ * Given any captured exception, extract its keys and create a sorted
+ * and truncated list that will be used inside the event message.
+ * eg. `Non-error exception captured with keys: foo, bar, baz`
+ */
+export function extractExceptionKeysForMessage(
+  exception: Record<string, unknown>,
+  maxLength: number = 40,
+): string {
+  const keys = Object.keys(convertToPlainObject(exception));
+  keys.sort();
+
+  const firstKey = keys[0];
+
+  if (!firstKey) {
+    return '[object has no keys]';
+  }
+
+  if (firstKey.length >= maxLength) {
+    return truncate(firstKey, maxLength);
+  }
+
+  for (let includedKeys = keys.length; includedKeys > 0; includedKeys--) {
+    const serialized = keys.slice(0, includedKeys).join(', ');
+    if (serialized.length > maxLength) {
+      continue;
+    }
+    if (includedKeys === keys.length) {
+      return serialized;
+    }
+    return truncate(serialized, maxLength);
+  }
+
+  return '';
+}
+
+/** Filters out all but an object's own properties */
+function getOwnProperties(obj: unknown): { [key: string]: unknown } {
+  if (typeof obj === 'object' && obj !== null) {
+    const extractedProps: { [key: string]: unknown } = {};
+    for (const property in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, property)) {
+        extractedProps[property] = (obj as Record<string, unknown>)[property];
+      }
+    }
+    return extractedProps;
+  } else {
+    return {};
+  }
+}
+
+/** 这个函数通过检查 target 是否是一个 DOM 元素，然后选择合适的方法进行序列化 */
+function serializeEventTarget(target: unknown): string {
+  try {
+    return isElement(target)
+      ? htmlTreeAsString(target)
+      : Object.prototype.toString.call(target);
+  } catch (_oO) {
+    return '<unknown>';
+  }
 }

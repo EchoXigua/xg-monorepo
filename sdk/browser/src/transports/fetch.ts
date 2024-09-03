@@ -1,13 +1,14 @@
-import {
-  clearCachedImplementation,
-  getNativeImplementation,
-} from '@xigua-monitor/browser-utils';
-import { createTransport } from '@xigua-monitor/core';
 import type {
   Transport,
   TransportMakeRequestResponse,
   TransportRequest,
 } from '@xigua-monitor/types';
+import {
+  clearCachedImplementation,
+  getNativeImplementation,
+} from '@xigua-monitor/browser-utils';
+import { createTransport } from '@xigua-monitor/core';
+
 import { rejectedSyncPromise } from '@xigua-monitor/utils';
 import type { WINDOW } from '../helpers';
 

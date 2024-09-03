@@ -1,14 +1,3 @@
-import {
-  SENTRY_XHR_DATA_KEY,
-  addClickKeypressInstrumentationHandler,
-  addHistoryInstrumentationHandler,
-  addXhrInstrumentationHandler,
-} from '@xigua-monitor/browser-utils';
-import {
-  addBreadcrumb,
-  defineIntegration,
-  getClient,
-} from '@xigua-monitor/core';
 import type {
   Breadcrumb,
   Client,
@@ -24,6 +13,18 @@ import type {
   XhrBreadcrumbData,
   XhrBreadcrumbHint,
 } from '@xigua-monitor/types';
+import {
+  SENTRY_XHR_DATA_KEY,
+  addClickKeypressInstrumentationHandler,
+  addHistoryInstrumentationHandler,
+  addXhrInstrumentationHandler,
+} from '@xigua-monitor/browser-utils';
+import {
+  addBreadcrumb,
+  defineIntegration,
+  getClient,
+} from '@xigua-monitor/core';
+
 import {
   addConsoleInstrumentationHandler,
   addFetchInstrumentationHandler,

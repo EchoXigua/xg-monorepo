@@ -9,7 +9,7 @@ export {
   captureException,
   // captureEvent,
   // captureMessage,
-  // lastEventId,
+  lastEventId,
   // close,
   // flush,
   // setContext,
@@ -52,5 +52,12 @@ export { initAndBind, setCurrentClient } from './sdk';
 export { inboundFiltersIntegration } from './integrations/inboundfilters';
 export { functionToStringIntegration } from './integrations/functiontostring';
 export { dedupeIntegration } from './integrations/dedupe';
+export { applySdkMetadata } from './utils/sdkMetadata';
+export { BaseClient } from './baseclient';
+export { addBreadcrumb } from './breadcrumbs';
+export {
+  getEnvelopeEndpointWithUrlEncodedAuth,
+  getReportDialogEndpoint,
+} from './api';
 
 export { SDK_VERSION } from '@xigua-monitor/utils';

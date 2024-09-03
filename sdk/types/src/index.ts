@@ -56,3 +56,10 @@ export type {
   // SentryXhrData,
   // SentryWrappedXMLHttpRequest,
 } from './instrument';
+
+export type {
+  // ExtractedNodeRequestData,
+  // HttpHeaderValue,
+  Primitive,
+  // WorkerLocation,
+} from './misc';

@@ -35,15 +35,14 @@ const WINDOW = GLOBAL_OBJ as unknown as Window;
  * @returns Answer to the given question.
  */
 export function supportsHistory(): boolean {
-  // NOTE: in Chrome App environment, touching history.pushState, *even inside
-  //       a try/catch block*, will cause Chrome to output an error to console.error
   // borrowed from: https://github.com/angular/angular.js/pull/13945/files
   /* eslint-disable @typescript-eslint/no-unsafe-member-access */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
-  // 检查是否在 Chrome 应用环境中
-  // Chrome 应用环境中对 history 的访问会导致错误输出，因此在这种环境中，
-  // 我们不希望触发 History API 的相关调用。
+  // 检查是否在 Chrome 应用环境中( 指的是 Chrome 打包应用（Packaged Apps）或 Chrome 扩展的上下文环境)
+  // 在某些 Chrome App 环境中，访问 history.pushState 可能会触发错误日志，即使这段代码被包裹在 try/catch 语句中
+  // 因此在这种环境中，我们不希望触发 History API 的相关调用。
+  // 所以还需要判断是否处于 Chrome App 环境中
   const chromeVar = (WINDOW as any).chrome;
   // 判断当前环境是否是一个 Chrome 打包应用（Chrome Packaged App）
   const isChromePackagedApp =

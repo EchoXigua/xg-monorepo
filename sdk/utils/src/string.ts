@@ -1,6 +1,20 @@
 import { isRegExp, isString, isVueViewModel } from './is';
 
 /**
+ * 将给定字符串截断为最大字符数
+ *
+ * @param str An object that contains serializable values
+ * @param max Maximum number of characters in truncated string (0 = unlimited)
+ * @returns string Encoded
+ */
+export function truncate(str: string, max: number = 0): string {
+  if (typeof str !== 'string' || max === 0) {
+    return str;
+  }
+  return str.length <= max ? str : `${str.slice(0, max)}...`;
+}
+
+/**
  * 检查给定的字符串是否匹配一个特定的字符串或正则表达式
  *
  * @param value 需要测试的字符串
@@ -52,4 +66,39 @@ export function stringMatchesSomePattern(
     // 如果有任意一个模式匹配成功，some 方法将返回 true
     isMatchingPattern(testString, pattern, requireExactStringMatch),
   );
+}
+
+/**
+ * Join values in array
+ * @param input array of values to be joined together
+ * @param delimiter string to be placed in-between values
+ * @returns Joined values
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function safeJoin(input: any[], delimiter?: string): string {
+  if (!Array.isArray(input)) {
+    return '';
+  }
+
+  const output = [];
+  // eslint-disable-next-line @typescript-eslint/prefer-for-of
+  for (let i = 0; i < input.length; i++) {
+    const value = input[i];
+    try {
+      // This is a hack to fix a Vue3-specific bug that causes an infinite loop of
+      // console warnings. This happens when a Vue template is rendered with
+      // an undeclared variable, which we try to stringify, ultimately causing
+      // Vue to issue another warning which repeats indefinitely.
+      // see: https://github.com/getsentry/sentry-javascript/pull/8981
+      if (isVueViewModel(value)) {
+        output.push('[VueViewModel]');
+      } else {
+        output.push(String(value));
+      }
+    } catch (e) {
+      output.push('[value cannot be serialized]');
+    }
+  }
+
+  return output.join(delimiter);
 }

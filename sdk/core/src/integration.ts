@@ -7,6 +7,20 @@ import type {
   Options,
 } from '@xigua-monitor/types';
 import { arrayify, logger } from '@xigua-monitor/utils';
+import { DEBUG_BUILD } from './debug-build';
+
+declare module '@xigua-monitor/types' {
+  interface Integration {
+    isDefaultInstance?: boolean;
+  }
+}
+
+export const installedIntegrations: string[] = [];
+
+/** Map of integrations assigned to a client */
+export type IntegrationIndex = {
+  [key: string]: Integration;
+};
 
 /**
  * Define an integration function that can be used to create an integration instance.
@@ -103,4 +117,97 @@ export function getIntegrationsToSetup(
 
   // 返回最终的 Integration 数组
   return finalIntegrations;
+}
+
+/**
+ * Given a list of integration instances this installs them all. When `withDefaults` is set to `true` then all default
+ * integrations are added unless they were already provided before.
+ * @param integrations array of integration instances
+ * @param withDefault should enable default integrations
+ */
+export function setupIntegrations(
+  client: Client,
+  integrations: Integration[],
+): IntegrationIndex {
+  const integrationIndex: IntegrationIndex = {};
+
+  integrations.forEach((integration) => {
+    // guard against empty provided integrations
+    if (integration) {
+      setupIntegration(client, integration, integrationIndex);
+    }
+  });
+
+  return integrationIndex;
+}
+
+/**
+ * Execute the `afterAllSetup` hooks of the given integrations.
+ */
+export function afterSetupIntegrations(
+  client: Client,
+  integrations: Integration[],
+): void {
+  for (const integration of integrations) {
+    // guard against empty provided integrations
+    if (integration && integration.afterAllSetup) {
+      integration.afterAllSetup(client);
+    }
+  }
+}
+
+/** Setup a single integration.  */
+export function setupIntegration(
+  client: Client,
+  integration: Integration,
+  integrationIndex: IntegrationIndex,
+): void {
+  if (integrationIndex[integration.name]) {
+    DEBUG_BUILD &&
+      logger.log(
+        `Integration skipped because it was already installed: ${integration.name}`,
+      );
+    return;
+  }
+  integrationIndex[integration.name] = integration;
+
+  // `setupOnce` is only called the first time
+  if (
+    installedIntegrations.indexOf(integration.name) === -1 &&
+    typeof integration.setupOnce === 'function'
+  ) {
+    integration.setupOnce();
+    installedIntegrations.push(integration.name);
+  }
+
+  // `setup` is run for each client
+  if (integration.setup && typeof integration.setup === 'function') {
+    integration.setup(client);
+  }
+
+  if (typeof integration.preprocessEvent === 'function') {
+    const callback = integration.preprocessEvent.bind(
+      integration,
+    ) as typeof integration.preprocessEvent;
+    client.on('preprocessEvent', (event, hint) =>
+      callback(event, hint, client),
+    );
+  }
+
+  if (typeof integration.processEvent === 'function') {
+    const callback = integration.processEvent.bind(
+      integration,
+    ) as typeof integration.processEvent;
+
+    const processor = Object.assign(
+      (event: Event, hint: EventHint) => callback(event, hint, client),
+      {
+        id: integration.name,
+      },
+    );
+
+    client.addEventProcessor(processor);
+  }
+
+  DEBUG_BUILD && logger.log(`Integration installed: ${integration.name}`);
 }
