@@ -3,7 +3,7 @@ import {
   addClickKeypressInstrumentationHandler,
   addHistoryInstrumentationHandler,
   addXhrInstrumentationHandler,
-} from '@sentry-internal/browser-utils';
+} from '@xigua-monitor/browser-utils';
 import {
   addBreadcrumb,
   defineIntegration,

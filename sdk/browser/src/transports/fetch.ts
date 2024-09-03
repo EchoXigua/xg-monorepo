@@ -1,7 +1,7 @@
 import {
   clearCachedImplementation,
   getNativeImplementation,
-} from '@sentry-internal/browser-utils';
+} from '@xigua-monitor/browser-utils';
 import { createTransport } from '@xigua-monitor/core';
 import type {
   Transport,

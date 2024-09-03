@@ -24,7 +24,7 @@ import {
   supportsFetch,
 } from '@xigua-monitor/utils';
 
-import { addHistoryInstrumentationHandler } from '@sentry-internal/browser-utils';
+import { addHistoryInstrumentationHandler } from '@xigua-monitor/browser-utils';
 import { dedupeIntegration } from '@xigua-monitor/core';
 import type { BrowserClientOptions, BrowserOptions } from './client';
 import { BrowserClient } from './client';

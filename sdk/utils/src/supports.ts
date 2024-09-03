@@ -4,6 +4,8 @@ import { GLOBAL_OBJ } from './worldwide';
 
 const WINDOW = GLOBAL_OBJ as unknown as Window;
 
+export { supportsHistory } from './vendor/supportsHistory';
+
 /**
  *  这个函数旨在确定当前的浏览器环境是否支持 Fetch API
  *

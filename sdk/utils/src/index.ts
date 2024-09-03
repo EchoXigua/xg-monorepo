@@ -10,5 +10,6 @@ export * from './dsn';
 export * from './supports';
 export * from './stacktrace';
 export * from './string';
+export * from './instrument';
 
 export * from './version';
