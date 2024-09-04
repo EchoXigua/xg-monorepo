@@ -5,6 +5,6 @@ import * as XgMonitor from '@xigua-monitor/vue';
 const app = createApp(App);
 console.log('app', app);
 
-console.log(XgMonitor.init());
+XgMonitor.init();
 
 app.mount('#app');
