@@ -187,6 +187,7 @@ function extractMessage(ex: Error & { message: { error?: Error } }): string {
 
 /**
  * 从异常创建一个 Event 对象
+ *
  * Creates an {@link Event} from all inputs to `captureException` and non-primitive inputs to `captureMessage`.
  * @hidden
  */
