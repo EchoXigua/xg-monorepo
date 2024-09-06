@@ -33,7 +33,7 @@ import { updateSession } from './session';
 import { _getSpanForScope, _setSpanForScope } from './utils/spanOnScope';
 
 /**
- * Default value for maximum number of breadcrumbs added to an event.
+ * 添加到事件中的面包屑的最大数量的默认值
  */
 const DEFAULT_MAX_BREADCRUMBS = 100;
 
@@ -203,6 +203,8 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 设置当前作用域的客户端实例
+   * Client 是用来与 Sentry 服务器进行交互的类。如果传入的是 undefined，则表示清空当前的 Client。
    * @inheritDoc
    */
   public setClient(client: Client | undefined): void {
@@ -210,6 +212,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   *  设置最近捕获的事件的 ID。这可以用来追踪最后一次报告的事件
    * @inheritDoc
    */
   public setLastEventId(lastEventId: string | undefined): void {
@@ -217,6 +220,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 获取当前 Scope 中的客户端实例，返回的类型是 Client 或者 undefined
    * @inheritDoc
    */
   public getClient<C extends Client>(): C | undefined {
@@ -224,6 +228,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 返回最后一个事件的 ID
    * @inheritDoc
    */
   public lastEventId(): string | undefined {
@@ -231,6 +236,8 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 向作用域中添加监听器。当作用域发生变化时，这些监听器会被调用
+   *
    * @inheritDoc
    */
   public addScopeListener(callback: (scope: Scope) => void): void {
@@ -238,6 +245,8 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 添加事件处理器，这些处理器会在事件处理过程中被调用。
+   * 返回实例，这样可以链式调用
    * @inheritDoc
    */
   public addEventProcessor(callback: EventProcessor): this {
@@ -246,6 +255,8 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 设置当前用户。
+   * 如果传入 null，则清除用户信息（但保留 key），从而确保后续处理能够清除任何现存的用户数据。
    * @inheritDoc
    */
   public setUser(user: User | null): this {
@@ -258,15 +269,18 @@ class ScopeClass implements ScopeInterface {
       username: undefined,
     };
 
+    // 存在会话，更新会话信息中的用户
     if (this._session) {
       updateSession(this._session, { user });
     }
 
+    // 通知监听器作用域发生了变化
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   * 获取当前设置的用户信息
    * @inheritDoc
    */
   public getUser(): User | undefined {
@@ -274,6 +288,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 获取当前请求的会话信息
    * @inheritDoc
    */
   public getRequestSession(): RequestSession | undefined {
@@ -281,6 +296,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 设置或更新当前的请求会话
    * @inheritDoc
    */
   public setRequestSession(requestSession?: RequestSession): this {
@@ -289,6 +305,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 批量设置多个标签
    * @inheritDoc
    */
   public setTags(tags: { [key: string]: Primitive }): this {
@@ -296,20 +313,24 @@ class ScopeClass implements ScopeInterface {
       ...this._tags,
       ...tags,
     };
+    // 通知监听器范围的更新
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   * 设置单个标签
    * @inheritDoc
    */
   public setTag(key: string, value: Primitive): this {
     this._tags = { ...this._tags, [key]: value };
+    // 通知监听器范围的更新
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   * 设置或更新多个额外信息
    * @inheritDoc
    */
   public setExtras(extras: Extras): this {
@@ -317,38 +338,47 @@ class ScopeClass implements ScopeInterface {
       ...this._extra,
       ...extras,
     };
+    // 通知监听器，说明 Scope 已发生更改
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   * 设置或更新单个额外信息
    * @inheritDoc
    */
   public setExtra(key: string, extra: Extra): this {
     this._extra = { ...this._extra, [key]: extra };
+    // 通知监听器，说明 Scope 已发生更改
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   * 设置事件的指纹
+   * 指纹用于帮助 Sentry 区分不同的错误或事件
    * @inheritDoc
    */
   public setFingerprint(fingerprint: string[]): this {
     this._fingerprint = fingerprint;
+    // 通知监听器作用域的变化
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   * 设置事件的严重性级别
    * @inheritDoc
    */
   public setLevel(level: SeverityLevel): this {
     this._level = level;
+    // 通知监听器作用域的变化
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   * 设置当前事务的名称
    * @inheritDoc
    */
   public setTransactionName(name?: string): this {
@@ -358,13 +388,16 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 设置或删除上下文
    * @inheritDoc
    */
   public setContext(key: string, context: Context | null): this {
     if (context === null) {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      // 删除 _contexts 对象中的对应 key
       delete this._contexts[key];
     } else {
+      // 设置新的值
       this._contexts[key] = context;
     }
 
@@ -373,12 +406,15 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 设置或清除当前会话
    * @inheritDoc
    */
   public setSession(session?: Session): this {
     if (!session) {
+      // 删除当前会话
       delete this._session;
     } else {
+      // 更新 _session 为新的值
       this._session = session;
     }
     this._notifyScopeListeners();
@@ -386,6 +422,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 获取当前会话信息
    * @inheritDoc
    */
   public getSession(): Session | undefined {
@@ -393,6 +430,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 根据传入的参数更新 Scope 的相关属性
    * @inheritDoc
    */
   public update(captureContext?: CaptureContext): this {
@@ -425,10 +463,12 @@ class ScopeClass implements ScopeInterface {
       propagationContext,
     } = scopeInstance || {};
 
+    // 做合并
     this._tags = { ...this._tags, ...tags };
     this._extra = { ...this._extra, ...extra };
     this._contexts = { ...this._contexts, ...contexts };
 
+    // 做覆盖
     if (user && Object.keys(user).length) {
       this._user = user;
     }
@@ -453,10 +493,11 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 清空 Scope 的状态，将大部分属性重置为默认值
+   * client 不会被清除，这意味着 Scope 仍然与它所属的 Client 关联
    * @inheritDoc
    */
   public clear(): this {
-    // client is not cleared here on purpose!
     this._breadcrumbs = [];
     this._tags = {};
     this._extra = {};
@@ -467,15 +508,19 @@ class ScopeClass implements ScopeInterface {
     this._fingerprint = undefined;
     this._requestSession = undefined;
     this._session = undefined;
+
+    // 将当前 Scope 的 Span 重置为 undefined
     _setSpanForScope(this, undefined);
     this._attachments = [];
     this._propagationContext = generatePropagationContext();
 
+    // 通知所有监听器 Scope 已被清空
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   * 向当前 Scope 中添加一个 Breadcrumb，并限制最大数量
    * @inheritDoc
    */
   public addBreadcrumb(breadcrumb: Breadcrumb, maxBreadcrumbs?: number): this {
@@ -484,7 +529,7 @@ class ScopeClass implements ScopeInterface {
         ? maxBreadcrumbs
         : DEFAULT_MAX_BREADCRUMBS;
 
-    // No data has been changed, so don't notify scope listeners
+    // 没有数据被更改，所以不要通知作用域侦听器
     if (maxCrumbs <= 0) {
       return this;
     }
@@ -494,19 +539,23 @@ class ScopeClass implements ScopeInterface {
       ...breadcrumb,
     };
 
+    // 合并面包屑
     const breadcrumbs = this._breadcrumbs;
     breadcrumbs.push(mergedBreadcrumb);
     this._breadcrumbs =
+      // 长度超过最大限制，只保留最新的最大个数（最开始的会被丢弃）
       breadcrumbs.length > maxCrumbs
         ? breadcrumbs.slice(-maxCrumbs)
         : breadcrumbs;
 
+    // 通知事件监听器
     this._notifyScopeListeners();
 
     return this;
   }
 
   /**
+   * 获取最新的面包屑
    * @inheritDoc
    */
   public getLastBreadcrumb(): Breadcrumb | undefined {
@@ -514,15 +563,20 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 清空当前 Scope 中所有的面包屑
+   * 这个方法主要用于在某些操作完成后清除之前的事件追踪信息，使得接下来的操作不会受到之前信息的干扰
    * @inheritDoc
    */
   public clearBreadcrumbs(): this {
     this._breadcrumbs = [];
+    // 告知监听器面包屑已被清空
     this._notifyScopeListeners();
     return this;
   }
 
   /**
+   *  添加附件信息
+   * 该方法允许开发者在事件追踪中包含额外的数据，便于在问题发生时提供更全面的信息
    * @inheritDoc
    */
   public addAttachment(attachment: Attachment): this {
@@ -531,6 +585,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 清空附件信息
    * @inheritDoc
    */
   public clearAttachments(): this {
@@ -538,7 +593,10 @@ class ScopeClass implements ScopeInterface {
     return this;
   }
 
-  /** @inheritDoc */
+  /**
+   * 返回当前 Scope 的数据，包括面包屑、附件、上下文、标签等信息
+   * @inheritDoc
+   */
   public getScopeData(): ScopeData {
     return {
       breadcrumbs: this._breadcrumbs,
@@ -549,18 +607,20 @@ class ScopeClass implements ScopeInterface {
       user: this._user,
       level: this._level,
       fingerprint: this._fingerprint || [],
-      eventProcessors: this._eventProcessors,
-      propagationContext: this._propagationContext,
-      sdkProcessingMetadata: this._sdkProcessingMetadata,
+      eventProcessors: this._eventProcessors, // 事件处理器数组
+      propagationContext: this._propagationContext, // 用于传播的上下文
+      sdkProcessingMetadata: this._sdkProcessingMetadata, // SDK 处理的元数据
       transactionName: this._transactionName,
-      span: _getSpanForScope(this),
+      span: _getSpanForScope(this), // 当前 Scope 关联的 span
     };
   }
 
   /**
+   * 设置或更新 SDK 处理的元数据
    * @inheritDoc
    */
   public setSDKProcessingMetadata(newData: { [key: string]: unknown }): this {
+    // 将新的 元数据合并
     this._sdkProcessingMetadata = {
       ...this._sdkProcessingMetadata,
       ...newData,
@@ -570,6 +630,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 设置当前 Scope 的传播上下文
    * @inheritDoc
    */
   public setPropagationContext(context: PropagationContext): this {
@@ -578,6 +639,7 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 获取当前 Scope 的传播上下文
    * @inheritDoc
    */
   public getPropagationContext(): PropagationContext {
@@ -585,11 +647,15 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 捕获异常并将其发送到 Sentry
+   * 该方法用于处理和捕获应用程序中的异常，确保这些异常信息能被记录和追踪，便于后续分析
    * @inheritDoc
    */
   public captureException(exception: unknown, hint?: EventHint): string {
+    // 如果 hint 中包含 event_id，则使用它；否则生成一个新的 UUID
     const eventId = hint && hint.event_id ? hint.event_id : uuid4();
 
+    // 如果当前没有配置客户端，发出警告并返回事件 ID。
     if (!this._client) {
       logger.warn(
         'No client configured on scope - will not capture exception!',
@@ -597,8 +663,10 @@ class ScopeClass implements ScopeInterface {
       return eventId;
     }
 
+    // 创建一个新的 Error 对象，用于 Sentry 处理
     const syntheticException = new Error('Sentry syntheticException');
 
+    // 将捕获的异常及相关信息发送到 Sentry
     this._client.captureException(
       exception,
       {
@@ -610,10 +678,18 @@ class ScopeClass implements ScopeInterface {
       this,
     );
 
+    // 无论是否成功捕获异常，都返回事件 ID
     return eventId;
   }
 
   /**
+   * 捕获一个消息并将其发送到 Sentry
+   *
+   * @param message 要捕获的消息字符串
+   * @param level 指定消息的严重性级别
+   * @param hint 事件提示对象，包含额外的信息
+   * @returns
+   *
    * @inheritDoc
    */
   public captureMessage(
@@ -621,15 +697,19 @@ class ScopeClass implements ScopeInterface {
     level?: SeverityLevel,
     hint?: EventHint,
   ): string {
+    // 生成事件 ID
     const eventId = hint && hint.event_id ? hint.event_id : uuid4();
 
+    // 检查客户端配置
     if (!this._client) {
       logger.warn('No client configured on scope - will not capture message!');
       return eventId;
     }
 
+    // 创建合成异常，这是用于帮助调试的
     const syntheticException = new Error(message);
 
+    // 将消息、级别、原始异常、合成异常及其它提示信息发送到 Sentry
     this._client.captureMessage(
       message,
       level,
@@ -646,33 +726,43 @@ class ScopeClass implements ScopeInterface {
   }
 
   /**
+   * 捕获一个完整的事件并将其发送到 Sentry
    * @inheritDoc
    */
   public captureEvent(event: Event, hint?: EventHint): string {
+    // 生成事件id
     const eventId = hint && hint.event_id ? hint.event_id : uuid4();
 
+    // 检查客户端配置
     if (!this._client) {
       logger.warn('No client configured on scope - will not capture event!');
       return eventId;
     }
 
+    // 将事件和提示信息发送到 Sentry
     this._client.captureEvent(event, { ...hint, event_id: eventId }, this);
 
     return eventId;
   }
 
   /**
-   * This will be called on every set call.
+   * 通知所有注册的作用域监听器，以便在作用域更新时触发相应的回调
    */
   protected _notifyScopeListeners(): void {
-    // We need this check for this._notifyingListeners to be able to work on scope during updates
-    // If this check is not here we'll produce endless recursion when something is done with the scope
-    // during the callback.
+    /**
+     * 在某些情况下，在更新对象时通知相关的监听器（scopeListeners）
+     * 然而，在通知过程中，如果某些监听器再次尝试更新同一个 Scope 对象，就可能导致无限递归。
+     * 所以使用 _notifyingListeners 标志用于指示当前是否正在通知监听器，以避免在通知过程中再次触发
+     */
+
+    // 状态检查
     if (!this._notifyingListeners) {
       this._notifyingListeners = true;
+      // 遍历，依次调用每个监听器
       this._scopeListeners.forEach((callback) => {
         callback(this);
       });
+      // 重置标志
       this._notifyingListeners = false;
     }
   }
