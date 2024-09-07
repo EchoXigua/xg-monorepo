@@ -1,7 +1,9 @@
 import type { Scope, Client } from '@xigua-monitor/types';
+import { getGlobalSingleton } from '@xigua-monitor/utils';
 
 import { getAsyncContextStrategy } from './asyncContext';
 import { getMainCarrier } from './carrier';
+import { Scope as ScopeClass } from './scope';
 
 /**
  * 获取当前活动的 Scope 对象
@@ -28,6 +30,14 @@ export function getIsolationScope(): Scope {
   const carrier = getMainCarrier();
   const acs = getAsyncContextStrategy(carrier);
   return acs.getIsolationScope();
+}
+
+/**
+ * Get the global scope.
+ * This scope is applied to _all_ events.
+ */
+export function getGlobalScope(): Scope {
+  return getGlobalSingleton('globalScope', () => new ScopeClass());
 }
 
 /**

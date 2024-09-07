@@ -1,15 +1,15 @@
 export * from './tracing';
 export * from './semanticAttributes';
 
-export { defineIntegration } from './integration';
+export { getIntegrationsToSetup, defineIntegration } from './integration';
 export { hasTracingEnabled } from './utils/hasTracingEnabled';
 export {
   // captureCheckIn,
   // withMonitor,
   captureException,
-  // captureEvent,
+  captureEvent,
   // captureMessage,
-  // lastEventId,
+  lastEventId,
   // close,
   // flush,
   // setContext,
@@ -20,9 +20,9 @@ export {
   // setUser,
   // isInitialized,
   // isEnabled,
-  // startSession,
+  startSession,
   // endSession,
-  // captureSession,
+  captureSession,
   // addEventProcessor,
 } from './exports';
 
@@ -38,5 +38,27 @@ export {
   // addChildSpanToSpan,
   // spanTimeInputToSeconds,
 } from './utils/spanUtils';
+
+export {
+  getCurrentScope,
+  getIsolationScope,
+  // getGlobalScope,
+  withScope,
+  // withIsolationScope,
+  getClient,
+} from './currentScopes';
+
+export { initAndBind, setCurrentClient } from './sdk';
+export { inboundFiltersIntegration } from './integrations/inboundfilters';
+export { functionToStringIntegration } from './integrations/functiontostring';
+export { dedupeIntegration } from './integrations/dedupe';
+export { applySdkMetadata } from './utils/sdkMetadata';
+export { BaseClient } from './baseclient';
+export { addBreadcrumb } from './breadcrumbs';
+export {
+  getEnvelopeEndpointWithUrlEncodedAuth,
+  getReportDialogEndpoint,
+} from './api';
+export { createTransport } from './transports/base';
 
 export { SDK_VERSION } from '@xigua-monitor/utils';

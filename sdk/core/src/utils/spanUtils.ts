@@ -40,6 +40,16 @@ export const TRACE_FLAG_NONE = 0x0;
 export const TRACE_FLAG_SAMPLED = 0x1;
 
 /**
+ * Convert a span to a trace context, which can be sent as the `trace` context in a non-transaction event.
+ */
+export function spanToTraceContext(span: Span): TraceContext {
+  const { spanId: span_id, traceId: trace_id } = span.spanContext();
+  const { parent_span_id } = spanToJSON(span);
+
+  return dropUndefinedKeys({ parent_span_id, span_id, trace_id });
+}
+
+/**
  * 这段代码涉及到分布式追踪中的一个重要概念——采样（Sampling）
  * 在分布式系统中，由于性能和存储空间的限制，
  * 不可能对所有请求都进行详细的追踪，因此通常会通过采样机制只对部分请求进行追踪。

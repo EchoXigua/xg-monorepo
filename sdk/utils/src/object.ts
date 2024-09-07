@@ -1,13 +1,54 @@
+import type { WrappedFunction } from '@xigua-monitor/types';
+
 import { DEBUG_BUILD } from './debug-build';
 import { logger } from './logger';
 import {
-  // isElement,
-  // isError,
-  // isEvent,
-  // isInstanceOf,
+  isElement,
+  isError,
+  isEvent,
+  isInstanceOf,
   isPlainObject,
-  // isPrimitive,
+  isPrimitive,
 } from './is';
+import { truncate } from './string';
+import { htmlTreeAsString } from './browser';
+
+/**
+ * 函数的主要作用是用一个包装版本替代对象中的某个方法，同时保留原始方法，
+ * 以便后续在包装方法中能够调用原始方法。
+ * 这种技术在监控、错误处理或日志记录等场景中非常有用。
+ *
+ * @param source 一个对象，包含需要被包装的方法
+ * @param name 要包装的方法的名称
+ * @param replacementFactory  一个高阶函数，接受原始方法并返回一个包装版本。
+ * 返回的函数必须是普通函数(非箭头函数)，以便保留正确的 this 上下文
+ * 通过 call apply 去调用，而不是直接调用，这样能正确的使用this
+ *
+ * @returns void
+ */
+export function fill(
+  source: { [key: string]: any },
+  name: string,
+  replacementFactory: (...args: any[]) => any,
+): void {
+  // 指定的方法不存在，直接返回
+  if (!(name in source)) {
+    return;
+  }
+
+  // 获取原始方法:
+  const original = source[name] as () => any;
+  // 获取包装后的方法
+  const wrapped = replacementFactory(original) as WrappedFunction;
+
+  // 检查 wrapped 是否为一个函数。如果是，标记这个函数，记住原始函数。
+  if (typeof wrapped === 'function') {
+    markFunctionWrapped(wrapped, original);
+  }
+
+  // 替换原始方法
+  source[name] = wrapped;
+}
 
 /**
  * 用于在给定的对象上定义一个不可枚举的属性
@@ -36,6 +77,42 @@ export function addNonEnumerableProperty(
         obj,
       );
   }
+}
+
+/**
+ * Encodes given object into url-friendly format
+ *
+ * @param object An object that contains serializable values
+ * @returns string Encoded
+ */
+export function urlEncode(object: { [key: string]: any }): string {
+  return Object.keys(object)
+    .map(
+      (key) => `${encodeURIComponent(key)}=${encodeURIComponent(object[key])}`,
+    )
+    .join('&');
+}
+
+/**
+ * Remembers the original function on the wrapped function and
+ * patches up the prototype.
+ *
+ * @param wrapped 被包装后的函数
+ * @param original 原始的未包装函数
+ */
+export function markFunctionWrapped(
+  wrapped: WrappedFunction,
+  original: WrappedFunction,
+): void {
+  try {
+    // 尝试将 wrapped 和 original 的原型设置为相同的对象
+    // 为了确保在使用 instanceof 检查时能够正确工作
+    const proto = original.prototype || {};
+    wrapped.prototype = original.prototype = proto;
+
+    // 将原始方法添加为 wrapped 的一个非枚举属性，这样可以在后续需要时获取原始方法
+    addNonEnumerableProperty(wrapped, '__sentry_original__', original);
+  } catch (o_O) {} // eslint-disable-line no-empty
 }
 
 /**
@@ -131,5 +208,140 @@ function isPojo(input: unknown): input is Record<string, unknown> {
     return !name || name === 'Object';
   } catch {
     return true;
+  }
+}
+
+/**
+ * 这个函数的作用从一个被包装的函数中提取出其原始版本
+ *
+ * See `markFunctionWrapped` for more information.
+ *
+ * @param func 一个被包装的函数
+ * 这个函数应该包含一个特殊属性 __sentry_original__，用于存储原始函数
+ *
+ * @returns 返回 func 的原始函数
+ */
+export function getOriginalFunction(
+  func: WrappedFunction,
+): WrappedFunction | undefined {
+  return func.__sentry_original__;
+}
+
+/**
+ * Transforms any `Error` or `Event` into a plain object with all of their enumerable properties, and some of their
+ * non-enumerable properties attached.
+ *
+ * @param value Initial source that we have to transform in order for it to be usable by the serializer
+ * @returns An Event or Error turned into an object - or the value argurment itself, when value is neither an Event nor
+ *  an Error.
+ */
+export function convertToPlainObject<V>(value: V):
+  | {
+      [ownProps: string]: unknown;
+      type: string;
+      target: string;
+      currentTarget: string;
+      detail?: unknown;
+    }
+  | {
+      [ownProps: string]: unknown;
+      message: string;
+      name: string;
+      stack?: string;
+    }
+  | V {
+  if (isError(value)) {
+    return {
+      message: value.message,
+      name: value.name,
+      stack: value.stack,
+      ...getOwnProperties(value),
+    };
+  } else if (isEvent(value)) {
+    const newObj: {
+      [ownProps: string]: unknown;
+      type: string;
+      target: string;
+      currentTarget: string;
+      detail?: unknown;
+    } = {
+      type: value.type,
+      target: serializeEventTarget(value.target),
+      currentTarget: serializeEventTarget(value.currentTarget),
+      ...getOwnProperties(value),
+    };
+
+    if (
+      typeof CustomEvent !== 'undefined' &&
+      isInstanceOf(value, CustomEvent)
+    ) {
+      newObj.detail = value.detail;
+    }
+
+    return newObj;
+  } else {
+    return value;
+  }
+}
+
+/**
+ * Given any captured exception, extract its keys and create a sorted
+ * and truncated list that will be used inside the event message.
+ * eg. `Non-error exception captured with keys: foo, bar, baz`
+ */
+export function extractExceptionKeysForMessage(
+  exception: Record<string, unknown>,
+  maxLength: number = 40,
+): string {
+  const keys = Object.keys(convertToPlainObject(exception));
+  keys.sort();
+
+  const firstKey = keys[0];
+
+  if (!firstKey) {
+    return '[object has no keys]';
+  }
+
+  if (firstKey.length >= maxLength) {
+    return truncate(firstKey, maxLength);
+  }
+
+  for (let includedKeys = keys.length; includedKeys > 0; includedKeys--) {
+    const serialized = keys.slice(0, includedKeys).join(', ');
+    if (serialized.length > maxLength) {
+      continue;
+    }
+    if (includedKeys === keys.length) {
+      return serialized;
+    }
+    return truncate(serialized, maxLength);
+  }
+
+  return '';
+}
+
+/** Filters out all but an object's own properties */
+function getOwnProperties(obj: unknown): { [key: string]: unknown } {
+  if (typeof obj === 'object' && obj !== null) {
+    const extractedProps: { [key: string]: unknown } = {};
+    for (const property in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, property)) {
+        extractedProps[property] = (obj as Record<string, unknown>)[property];
+      }
+    }
+    return extractedProps;
+  } else {
+    return {};
+  }
+}
+
+/** 这个函数通过检查 target 是否是一个 DOM 元素，然后选择合适的方法进行序列化 */
+function serializeEventTarget(target: unknown): string {
+  try {
+    return isElement(target)
+      ? htmlTreeAsString(target)
+      : Object.prototype.toString.call(target);
+  } catch (_oO) {
+    return '<unknown>';
   }
 }

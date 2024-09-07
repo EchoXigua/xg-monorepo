@@ -3,10 +3,11 @@ import { DEBUG_BUILD } from '../debug-build';
 
 /**
  * 这个函数的目的是从给定的值中解析出一个有效的采样率
- * This will either return a boolean or number sample rate, if the sample rate is valid (between 0 and 1).
- * If a string is passed, we try to convert it to a number.
+ * 如果采样率有效(介于0和1之间)，这将返回布尔值或数字采样率
+ * 如果传递的是字符串，则尝试将其转换为数字
  *
- * Any invalid sample rate will return `undefined`.
+ * 任何无效的采样率将返回“undefined”
+ *
  */
 export function parseSampleRate(sampleRate: unknown): number | undefined {
   // 如果是 布尔值 将其转为数字 true --->1   false ---->0

@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@xigua-monitor/browser-utils": "workspace:^",
     "@xigua-monitor/core": "workspace:^",
     "@xigua-monitor/utils": "workspace:^"
   },

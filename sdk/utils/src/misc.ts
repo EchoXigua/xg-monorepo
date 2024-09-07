@@ -1,3 +1,10 @@
+import type {
+  Event,
+  Exception,
+  Mechanism,
+  StackFrame,
+} from '@xigua-monitor/types';
+import { addNonEnumerableProperty } from './object';
 import { GLOBAL_OBJ } from './worldwide';
 
 interface CryptoInternal {
@@ -102,4 +109,144 @@ export function uuid4(): string {
       ).toString(16),
     // 将最终的数字转换为十六进制字符串
   );
+}
+
+function getFirstException(event: Event): Exception | undefined {
+  return event.exception && event.exception.values
+    ? event.exception.values[0]
+    : undefined;
+}
+
+/**
+ * Extracts either message or type+value from an event that can be used for user-facing logs
+ * @returns event's description
+ */
+export function getEventDescription(event: Event): string {
+  const { message, event_id: eventId } = event;
+  if (message) {
+    return message;
+  }
+
+  const firstException = getFirstException(event);
+  if (firstException) {
+    if (firstException.type && firstException.value) {
+      return `${firstException.type}: ${firstException.value}`;
+    }
+    return (
+      firstException.type || firstException.value || eventId || '<unknown>'
+    );
+  }
+  return eventId || '<unknown>';
+}
+
+/**
+ * 将异常值、类型和值添加到合成异常
+ *
+ * @param event The event to modify.
+ * @param value Value of the exception.
+ * @param type Type of the exception.
+ * @hidden
+ */
+export function addExceptionTypeValue(
+  event: Event,
+  value?: string,
+  type?: string,
+): void {
+  // 初始化 exception 对象:
+  const exception = (event.exception = event.exception || {});
+
+  // 初始化 values 数组,这个用于存储异常信息
+  const values = (exception.values = exception.values || []);
+  // 获取第一个异常
+  const firstException = (values[0] = values[0] || {});
+
+  // 第一个异常中的value 和 type 不存在的话,设置为传递进来的
+  if (!firstException.value) {
+    firstException.value = value || '';
+  }
+  if (!firstException.type) {
+    firstException.type = type || 'Error';
+  }
+}
+
+/**
+ * 为给定事件添加异常机制数据。如果没有传递第二个参数，则使用默认值。
+ * 机制描述了异常是如何被捕获或处理的。
+ *
+ * @param event The event to modify.
+ * @param newMechanism Mechanism data to add to the event.
+ * @hidden
+ */
+export function addExceptionMechanism(
+  event: Event,
+  newMechanism?: Partial<Mechanism>,
+): void {
+  // 获取第一个异常:
+  const firstException = getFirstException(event);
+  // 如果没有异常存在，函数直接返回
+  if (!firstException) {
+    return;
+  }
+
+  // 设置默认机制
+  const defaultMechanism = { type: 'generic', handled: true };
+  const currentMechanism = firstException.mechanism;
+  // 合并机制数据
+  firstException.mechanism = {
+    ...defaultMechanism,
+    ...currentMechanism,
+    ...newMechanism,
+  };
+
+  // 如果 newMechanism 包含 data 字段，进一步合并现有的 data
+  if (newMechanism && 'data' in newMechanism) {
+    const mergedData = {
+      ...(currentMechanism && currentMechanism.data),
+      ...newMechanism.data,
+    };
+    firstException.mechanism.data = mergedData;
+  }
+}
+
+/**
+ * 检查我们是否已经捕获了给定的异常(注意:不是一个相同的异常—问题中的对象)，如果没有，则标记为已捕获。
+ * Checks whether or not we've already captured the given exception (note: not an identical exception - the very object
+ * in question), and marks it captured if not.
+ *
+ * This is useful because it's possible for an error to get captured by more than one mechanism. After we intercept and
+ * record an error, we rethrow it (assuming we've intercepted it before it's reached the top-level global handlers), so
+ * that we don't interfere with whatever effects the error might have had were the SDK not there. At that point, because
+ * the error has been rethrown, it's possible for it to bubble up to some other code we've instrumented. If it's not
+ * caught after that, it will bubble all the way up to the global handlers (which of course we also instrument). This
+ * function helps us ensure that even if we encounter the same error more than once, we only record it the first time we
+ * see it.
+ *
+ * Note: It will ignore primitives (always return `false` and not mark them as seen), as properties can't be set on
+ * them. {@link: Object.objectify} can be used on exceptions to convert any that are primitives into their equivalent
+ * object wrapper forms so that this check will always work. However, because we need to flag the exact object which
+ * will get rethrown, and because that rethrowing happens outside of the event processing pipeline, the objectification
+ * must be done before the exception captured.
+ *
+ * @param A thrown exception to check or flag as having been seen
+ * @returns `true` if the exception has already been captured, `false` if not (with the side effect of marking it seen)
+ */
+export function checkOrSetAlreadyCaught(exception: unknown): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  if (exception && (exception as any).__sentry_captured__) {
+    return true;
+  }
+
+  try {
+    // set it this way rather than by assignment so that it's not ennumerable and therefore isn't recorded by the
+    // `ExtraErrorData` integration
+    addNonEnumerableProperty(
+      exception as { [key: string]: unknown },
+      '__sentry_captured__',
+      true,
+    );
+  } catch (err) {
+    // `exception` is a primitive, so we can't mark it seen
+  }
+
+  return false;
 }
