@@ -15,7 +15,11 @@ import type { WINDOW } from '../helpers';
 import type { BrowserTransportOptions } from './types';
 
 /**
- * Creates a Transport that uses the Fetch API to send events to Sentry.
+ * 这个哈数基于 Fetch API 实现的 Sentry 传输机制，主要用于将事件发送到 Sentry 的服务器
+ *
+ * @param options 传输的配置选项
+ * @param nativeFetch 浏览器原生的 fetch
+ * @returns
  */
 export function makeFetchTransport(
   options: BrowserTransportOptions,
@@ -23,20 +27,31 @@ export function makeFetchTransport(
     'fetch',
   ),
 ): Transport {
+  /** 当前未完成请求的总大小,用于判断是否可以使用 keepalive 属性 */
   let pendingBodySize = 0;
+  /** 当前未完成请求的数量，同样用于限制并发请求 */
   let pendingCount = 0;
 
+  /**
+   * 发送请求的核心逻辑，负责组装请求并发送
+   *
+   * @param request 包含了需要发送的事件数据
+   * @returns
+   */
   function makeRequest(
     request: TransportRequest,
   ): PromiseLike<TransportMakeRequestResponse> {
+    /**
+     * 在每个请求开始时，更新 pendingBodySize 和 pendingCount，以便后续判断是否能使用 keepalive 属性。
+     */
     const requestSize = request.body.length;
     pendingBodySize += requestSize;
     pendingCount++;
 
     const requestOptions: RequestInit = {
-      body: request.body,
+      body: request.body, // 要发送的事件内容
       method: 'POST',
-      referrerPolicy: 'origin',
+      referrerPolicy: 'origin', // 只发送页面的源信息作为引用
       headers: options.headers,
       // Outgoing requests are usually cancelled when navigating to a different page, causing a "TypeError: Failed to
       // fetch" error and sending a "network_error" client-outcome - in Chrome, the request status shows "(cancelled)".
