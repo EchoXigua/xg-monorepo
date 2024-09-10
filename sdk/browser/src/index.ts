@@ -21,8 +21,8 @@ export {
   // thirdPartyErrorFilterIntegration,
 } from '@xigua-monitor/core';
 
-// export {
-//   // browserTracingIntegration,
-//   startBrowserTracingNavigationSpan,
-//   // startBrowserTracingPageLoadSpan,
-// } from './tracing/browserTracingIntegration';
+export {
+  browserTracingIntegration,
+  startBrowserTracingNavigationSpan,
+  // startBrowserTracingPageLoadSpan,
+} from './tracing/browserTracingIntegration';

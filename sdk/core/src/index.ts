@@ -28,12 +28,12 @@ export {
 
 export {
   // spanToTraceHeader,
-  // spanToJSON,
-  // spanIsSampled,
+  spanToJSON,
+  spanIsSampled,
   // spanToTraceContext,
   // getSpanDescendants,
   // getStatusMessage,
-  // getRootSpan,
+  getRootSpan,
   getActiveSpan,
   // addChildSpanToSpan,
   // spanTimeInputToSeconds,

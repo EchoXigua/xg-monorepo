@@ -359,7 +359,6 @@ export function spanToTransactionTraceContext(span: Span): TraceContext {
 
 /**
  * 返回给定 Span 及其所有子孙的数组
- * Returns an array of the given span and all of its descendants.
  */
 export function getSpanDescendants(span: SpanWithPotentialChildren): Span[] {
   // 使用 Set 结构来存储 Span 对象，确保不会有重复的 Span

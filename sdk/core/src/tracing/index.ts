@@ -1,3 +1,5 @@
+export { registerSpanErrorInstrumentation } from './errors';
+
 export {
   // startSpan,
   startInactiveSpan,
@@ -7,3 +9,11 @@ export {
   // suppressTracing,
   // startNewTrace,
 } from './trace';
+
+export { startIdleSpan, TRACING_DEFAULTS } from './idleSpan';
+
+export {
+  getDynamicSamplingContextFromClient,
+  getDynamicSamplingContextFromSpan,
+  // spanToBaggageHeader,
+} from './dynamicSamplingContext';
