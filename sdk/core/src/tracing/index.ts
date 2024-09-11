@@ -17,3 +17,9 @@ export {
   getDynamicSamplingContextFromSpan,
   // spanToBaggageHeader,
 } from './dynamicSamplingContext';
+
+export {
+  SPAN_STATUS_ERROR,
+  SPAN_STATUS_OK,
+  SPAN_STATUS_UNSET,
+} from './spanstatus';

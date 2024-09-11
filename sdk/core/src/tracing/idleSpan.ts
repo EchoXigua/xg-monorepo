@@ -244,9 +244,10 @@ export function startIdleSpan(
   });
 
   /**
-   * Cancels the existing idle timeout, if there is one.
+   * 取消现有的空闲超时定时器
    */
   function _cancelIdleTimeout(): void {
+    // 存在空闲定时器id,则清除这个定时器
     if (_idleTimeoutID) {
       clearTimeout(_idleTimeoutID);
       _idleTimeoutID = undefined;
@@ -254,9 +255,10 @@ export function startIdleSpan(
   }
 
   /**
-   * Cancels the existing child span timeout, if there is one.
+   * 取消现有的子 span 超时定时器
    */
   function _cancelChildSpanTimeout(): void {
+    // 存在子 span 定时器,则清除这个定时器
     if (_childSpanTimeoutID) {
       clearTimeout(_childSpanTimeoutID);
       _childSpanTimeoutID = undefined;
@@ -264,59 +266,82 @@ export function startIdleSpan(
   }
 
   /**
-   * Restarts idle timeout, if there is no running idle timeout it will start one.
+   * 重新启动空闲超时计时器。如果当前没有运行的空闲超时，则启动一个新的超时计时器。
    */
   function _restartIdleTimeout(endTimestamp?: number): void {
+    // 取消当前的空闲超时计时器，确保没有重复的超时计时器运行
     _cancelIdleTimeout();
+
+    // 创建一个新的超时计时器，指定在 idleTimeout 毫秒后执行的回调函数。
     _idleTimeoutID = setTimeout(() => {
+      // 当前任务没有已经结束  当前没有任何活动在进行 允许自动结束
       if (!_finished && activities.size === 0 && _autoFinishAllowed) {
+        // 设置结束原因
         _finishReason = FINISH_REASON_IDLE_TIMEOUT;
+        // 结束当前的 span
         span.end(endTimestamp);
       }
     }, idleTimeout);
   }
 
   /**
-   * Restarts child span timeout, if there is none running it will start one.
+   * 重新启动子 span 的超时计时器。如果当前没有运行的子 span 超时，则启动一个新的超时计时器
    */
   function _restartChildSpanTimeout(endTimestamp?: number): void {
+    // 取消当前的子 span 超时计时器
     _cancelChildSpanTimeout();
+
+    // 创建一个新的超时计时器
+    // _childSpanTimeoutID = setTimeout(() => {
     _idleTimeoutID = setTimeout(() => {
+      // 如果当前任务没有结束 且 允许自动结束
       if (!_finished && _autoFinishAllowed) {
+        // 设置结束原因
         _finishReason = FINISH_REASON_HEARTBEAT_FAILED;
+        // 自动结束当前的 span
         span.end(endTimestamp);
       }
     }, childSpanTimeout);
   }
 
   /**
-   * Start tracking a specific activity.
+   * 用于开始追踪某个特定的活动
    * @param spanId The span id that represents the activity
    */
   function _pushActivity(spanId: string): void {
+    // 在追踪新的活动之前，取消当前的空闲超时操作
+    // 当有新的活动开始时，系统不再处于空闲状态，因此需要停止原本可能设置的空闲计时器
     _cancelIdleTimeout();
+    // 表示该 spanId 代表的活动正在进行
     activities.set(spanId, true);
 
+    // 记录当前的时间戳,这个时间戳表示追踪活动的开始时间
     const endTimestamp = timestampInSeconds();
-    // We need to add the timeout here to have the real endtimestamp of the idle span
-    // Remember timestampInSeconds is in seconds, timeout is in ms
+    // 重新启动子 span 的超时操作
+    // 传入的时间戳是当前时间戳加上 childSpanTimeout 的持续时间，这意味着子 span 的追踪将在这个时间点之后超时。
     _restartChildSpanTimeout(endTimestamp + childSpanTimeout / 1000);
   }
 
   /**
-   * Remove an activity from usage
+   * 用于停止对某个特定活动的追踪
    * @param spanId The span id that represents the activity
    */
   function _popActivity(spanId: string): void {
+    // 找到指定的id 并移除它
     if (activities.has(spanId)) {
       activities.delete(spanId);
     }
 
+    // 检查当前是否没有活动在进行
     if (activities.size === 0) {
+      // 获取当前时间戳，表示所有活动结束的时间。
       const endTimestamp = timestampInSeconds();
-      // We need to add the timeout here to have the real endtimestamp of the idle span
-      // Remember timestampInSeconds is in seconds, timeout is in ms
+
+      // 重新启动空闲超时计时器，时间是当前时间加上 idleTimeout。
+      // 如果所有活动都结束，系统重新进入空闲状态，等待下一个超时
       _restartIdleTimeout(endTimestamp + idleTimeout / 1000);
+
+      // 取消子 span 的超时计时器，因为此时所有活动都已经结束，不再需要单独追踪子 span
       _cancelChildSpanTimeout();
     }
   }
@@ -441,61 +466,81 @@ export function startIdleSpan(
     }
   }
 
+  // 下面的代码主要用于处理 idle span（空闲的 span）的生命周期管理
+  // 包括自动结束、监听 spanStart 和 spanEnd 事件，以及处理子 span 的超时等情况
+  // 它通过挂载事件监听器和设置超时机制来控制 idle span 的结束条件
+
   _cleanupHooks.push(
+    // 每当一个新的 span 开始时触发
     client.on('spanStart', (startedSpan) => {
-      // If we already finished the idle span,
-      // or if this is the idle span itself being started,
-      // or if the started span has already been closed,
-      // we don't care about it for activity
       if (
+        // 如果 idle span 已经结束
         _finished ||
+        // 当前启动的 span 就是 idle span 本身
         startedSpan === span ||
+        // 如果 span 已经有结束时间，说明它已经结束，不需要再处理
         !!spanToJSON(startedSpan).timestamp
       ) {
+        // 跳过处理
         return;
       }
 
+      // 获取span 的所有子 span
       const allSpans = getSpanDescendants(span);
 
-      // If the span that was just started is a child of the idle span, we should track it
+      // 如果新启动的 span 是当前 idle span 的子级，应该跟踪它
       if (allSpans.includes(startedSpan)) {
+        // 则将其加入活动列表中
         _pushActivity(startedSpan.spanContext().spanId);
       }
     }),
   );
 
   _cleanupHooks.push(
+    // 在 span 结束时触发
     client.on('spanEnd', (endedSpan) => {
+      // 跳过已经结束的
       if (_finished) {
         return;
       }
 
+      // 传入结束的 span 的 spanId，从活动列表中移除它
       _popActivity(endedSpan.spanContext().spanId);
     }),
   );
 
   _cleanupHooks.push(
+    // 在启用 idle span 的自动结束时触发
     client.on('idleSpanEnableAutoFinish', (spanToAllowAutoFinish) => {
+      // 如果是当前span
       if (spanToAllowAutoFinish === span) {
+        // 设置为  true，允许自动结束
         _autoFinishAllowed = true;
+        // 重新开始 idle span 的超时计时
         _restartIdleTimeout();
 
+        // 如果当前仍有活动的子 span（activities.size 大于 0）
         if (activities.size) {
+          // 重新开始子 span 的超时计时
           _restartChildSpanTimeout();
         }
       }
     }),
   );
 
-  // We only start the initial idle timeout if we are not delaying the auto finish
+  // 如果未禁用自动结束，开始 idle span 的超时计时
   if (!options.disableAutoFinish) {
     _restartIdleTimeout();
   }
 
+  // 设置一个定时器,用于确保 idle span 在超过该超时时间时强制结束
   setTimeout(() => {
     if (!_finished) {
+      // 超时之前还没结束, 将 span 的状态设置为 SPAN_STATUS_ERROR,并标记错误原因
       span.setStatus({ code: SPAN_STATUS_ERROR, message: 'deadline_exceeded' });
       _finishReason = FINISH_REASON_FINAL_TIMEOUT;
+
+      // 强制结束 span
       span.end();
     }
   }, finalTimeout);
@@ -503,12 +548,21 @@ export function startIdleSpan(
   return span;
 }
 
+/**
+ * 用于创建并启动一个处于“空闲状态”的 span，并将其与当前上下文关联
+ * @param options
+ * @returns
+ */
 function _startIdleSpan(options: StartSpanOptions): Span {
+  // 创建一个未激活的 span,这意味着这个 span 在开始时并没有标记为活跃，通常用于需要手动管理的 span
   const span = startInactiveSpan(options);
 
+  // 将创建的 span 设置到当前的作用域（scope）中
   _setSpanForScope(getCurrentScope(), span);
 
+  // debug 下记录日志 告知开发者创建的 span 是一个“空闲 span”
   DEBUG_BUILD && logger.log('[Tracing] Started span is an idle span');
 
+  // 这个 span 后续会在其他地方进行操作，比如手动启动、结束、计算时间等
   return span;
 }

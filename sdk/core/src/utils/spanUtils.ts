@@ -389,3 +389,13 @@ export function getSpanDescendants(span: SpanWithPotentialChildren): Span[] {
   // 将 Set 转换为数组并返回，包含所有的 Span 及其子孙
   return Array.from(resultSet);
 }
+
+/** 这只在Idle span内部使用 */
+export function removeChildSpanFromSpan(
+  span: SpanWithPotentialChildren,
+  childSpan: Span,
+): void {
+  if (span[CHILD_SPANS_FIELD]) {
+    span[CHILD_SPANS_FIELD].delete(childSpan);
+  }
+}
