@@ -12,7 +12,7 @@ import type {
 import {
   addNonEnumerableProperty,
   dropUndefinedKeys,
-  // generateSentryTraceHeader,
+  generateSentryTraceHeader,
   timestampInSeconds,
 } from '@xigua-monitor/utils';
 
@@ -47,6 +47,15 @@ export function spanToTraceContext(span: Span): TraceContext {
   const { parent_span_id } = spanToJSON(span);
 
   return dropUndefinedKeys({ parent_span_id, span_id, trace_id });
+}
+
+/**
+ * 将一个 Span 对象转换为 Sentry 的 sentry-trace 头部格式，用于在分布式系统中传递追踪信息。
+ */
+export function spanToTraceHeader(span: Span): string {
+  const { traceId, spanId } = span.spanContext();
+  const sampled = spanIsSampled(span);
+  return generateSentryTraceHeader(traceId, spanId, sampled);
 }
 
 /**

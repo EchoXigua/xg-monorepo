@@ -25,3 +25,5 @@ export {
 } from './spanstatus';
 
 export { SentryNonRecordingSpan } from './sentryNonRecordingSpan';
+
+export { setHttpStatus, getSpanStatusFromHttpCode } from './spanstatus';

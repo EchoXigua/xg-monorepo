@@ -27,7 +27,7 @@ export {
 } from './exports';
 
 export {
-  // spanToTraceHeader,
+  spanToTraceHeader,
   spanToJSON,
   spanIsSampled,
   // spanToTraceContext,
@@ -60,5 +60,9 @@ export {
   getReportDialogEndpoint,
 } from './api';
 export { createTransport } from './transports/base';
+export {
+  addTracingHeadersToFetchRequest,
+  instrumentFetchRequest,
+} from './fetch';
 
 export { SDK_VERSION } from '@xigua-monitor/utils';

@@ -52,6 +52,9 @@ export function instrumentXHR(): void {
   // 获取原型对象，以便对其方法进行增强
   const xhrproto = XMLHttpRequest.prototype;
 
+  // 这里可以发现有的是对 xhr 原型拦截，这样对所有的实例都会生效
+  // 有的是对 this 进行拦截，这说明拦截的是当前 xhr 实例，支队当前 xhr 生效
+
   // 包装 xhr 的原生open 方法，允许我们在打开请求时添加自定义逻辑
   fill(xhrproto, 'open', function (originalOpen: () => void): () => void {
     return function (
