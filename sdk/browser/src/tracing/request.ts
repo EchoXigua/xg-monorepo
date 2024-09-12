@@ -288,27 +288,50 @@ function isPerformanceResourceTiming(
 }
 
 /**
- * Creates a temporary observer to listen to the next fetch/xhr resourcing timings,
- * so that when timings hit their per-browser limit they don't need to be removed.
+ * 这个函数的主要功能是为 fetch 或 xhr 请求监听资源加载的性能数据，
+ * 并在性能数据达到浏览器限制时自动清理观察器。
+ * 核心机制依赖于浏览器的 PerformanceObserver，通过监听特定资源
+ * （比如通过 fetch 请求的资源）的性能数据，收集这些信息后将其记录到传入的 span 对象中
  *
- * @param span A span that has yet to be finished, must contain `url` on data.
+ * @param span 传入的 span 是一个尚未完成的跟踪跨度对象（通常用于记录请求或事务的生命周期）
+ * span 必须包含与网络请求关联的 url 信息
  */
 function addHTTPTimings(span: Span): void {
+  // 将 span JSON化后,提取 url
   const { url } = spanToJSON(span).data || {};
 
+  // url 不存在 或者 不是字符串,直接返回
   if (!url || typeof url !== 'string') {
     return;
   }
 
+  // 为性能资源事件（'resource'）添加一个临时观察器。
+  // 它会监听由浏览器性能 API 收集的资源加载数据，并执行回调函数
+  // 观察器是临时的，当目标资源的性能数据记录完成后，
+  // 通过 setTimeout 延迟调用清理函数来移除观察器，防止不必要的资源占用。
   const cleanup = addPerformanceInstrumentationHandler(
     'resource',
     ({ entries }) => {
+      // entries: 性能条目的集合，代表浏览器记录的所有资源加载事件
+
+      // 遍历每个条目
       entries.forEach((entry) => {
+        // 检查当前条目是否为,且资源的名称（即其 URL）是否以目标 url 结尾
         if (isPerformanceResourceTiming(entry) && entry.name.endsWith(url)) {
+          // 如果匹配，说明当前条目对应的资源就是我们要跟踪的请求
+
+          //  将 entry 转换为适合 span 的数据
           const spanData = resourceTimingEntryToSpanData(entry);
+
+          // 将这些性能数据附加到 span 对象上，逐个设置其属性。
           spanData.forEach((data) => span.setAttribute(...data));
-          // In the next tick, clean this handler up
-          // We have to wait here because otherwise this cleans itself up before it is fully done
+          /**
+           * 这里在下一次事件循环中,将该观察器清理掉.
+           * 如果不等待到下一次事件循环就立即清理这个处理程序，那么可能会发生处理程序还没有完全处理完毕时，
+           * 它就被提前清理掉了。这可能导致丢失部分性能数据，或者中断未完成的处理流程。
+           *
+           * 延迟执行清理函数。延迟的目的是为了确保观察器在处理完数据后再清理，而不是在处理过程中提前终止。
+           */
           setTimeout(cleanup);
         }
       });
