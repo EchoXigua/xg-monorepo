@@ -1,6 +1,10 @@
 export * from './types/polyfills';
 
 declare global {
+  interface PerformanceObserverInit {
+    durationThreshold?: number;
+  }
+
   interface LayoutShiftAttribution {
     node?: Node;
     previousRect: DOMRectReadOnly;

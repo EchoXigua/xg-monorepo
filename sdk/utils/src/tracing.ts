@@ -84,3 +84,20 @@ export function propagationContextFromHeaders(
     };
   }
 }
+
+/**
+ * 函数的主要功能是创建 Sentry 的跟踪头（sentry-trace），
+ * 该头部用于在分布式追踪中传递请求的上下文信息。
+ */
+export function generateSentryTraceHeader(
+  traceId: string = uuid4(),
+  spanId: string = uuid4().substring(16),
+  sampled?: boolean,
+): string {
+  let sampledString = '';
+  if (sampled !== undefined) {
+    sampledString = sampled ? '-1' : '-0';
+  }
+  //  -1，表示请求被采样，  -0，表示请求未被采样
+  return `${traceId}-${spanId}${sampledString}`;
+}
