@@ -5,7 +5,7 @@ export {
   startInactiveSpan,
   // startSpanManual,
   // continueTrace,
-  // withActiveSpan,
+  withActiveSpan,
   // suppressTracing,
   // startNewTrace,
 } from './trace';
@@ -27,3 +27,5 @@ export {
 export { SentryNonRecordingSpan } from './sentryNonRecordingSpan';
 
 export { setHttpStatus, getSpanStatusFromHttpCode } from './spanstatus';
+
+export { setMeasurement, timedEventsToMeasurements } from './measurement';

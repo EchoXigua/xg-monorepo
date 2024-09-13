@@ -211,96 +211,116 @@ const DEFAULT_BROWSER_TRACING_OPTIONS: BrowserTracingOptions = {
 };
 
 /**
- * The Browser Tracing integration automatically instruments browser pageload/navigation
- * actions as transactions, and captures requests, metrics and errors as spans.
+ * 这个函数提供一个浏览器的追踪集成，用于自动捕获浏览器中的页面加载和导航行为，并将其作为 Sentry 的 transaction（事务）进行追踪，
+ * 此外还会捕获相关的请求、性能指标（如 Web Vitals）以及错误，并将它们作为 Sentry 的 spans（跨度）记录
  *
- * The integration can be configured with a variety of options, and can be extended to use
- * any routing library.
+ * 这个集成通过接受配置参数来灵活控制追踪行为，比如是否启用交互追踪、长任务监控等。
+ * 这使得开发者可以根据自己的需求定制追踪的粒度和内容
+ * 虽然它主要负责监控浏览器的页面加载和导航，但也可以通过扩展的方式与其他路由库
+ * （例如 React Router、Vue Router 等）配合使用，以便更好地捕捉客户端的路由变化。
  *
- * We explicitly export the proper type here, as this has to be extended in some cases.
  */
 export const browserTracingIntegration = ((
   _options: Partial<BrowserTracingOptions> = {},
 ) => {
+  // 为 span（时间段）记录错误信息。这个函数会为追踪过程中可能产生的错误事件进行自动记录
   registerSpanErrorInstrumentation();
 
+  // 默认配置 DEFAULT_BROWSER_TRACING_OPTIONS 和传入的 _options 结合，生成配置项
+  // 然后再从配置中提取信息
+
   const {
-    enableInp,
-    enableLongTask,
-    enableLongAnimationFrame,
-    _experiments: { enableInteractions, enableStandaloneClsSpans },
-    beforeStartSpan,
-    idleTimeout,
-    finalTimeout,
-    childSpanTimeout,
-    markBackgroundSpan,
-    traceFetch,
-    traceXHR,
-    shouldCreateSpanForRequest,
-    enableHTTPTimings,
-    instrumentPageLoad,
-    instrumentNavigation,
+    enableInp, // 是否启用 INP 指标（交互延迟）
+    enableLongTask, // 是否追踪长任务（任务执行超过一定时间）
+    enableLongAnimationFrame, // 是否追踪长动画帧
+    _experiments: { enableInteractions, enableStandaloneClsSpans }, //  用于实验性功能的配置项
+    beforeStartSpan, // 自定义 span 启动前的操作
+    idleTimeout, // 空闲超时时间
+    finalTimeout, // 结束超时时间
+    childSpanTimeout, // 子 span 的超时时间
+    markBackgroundSpan, // 是否标记后台 span
+    traceFetch, // 是否追踪 fetch 请求
+    traceXHR, // 是否追踪 xhr 请求
+    shouldCreateSpanForRequest, // 是否为请求创建 span 的回调函数
+    enableHTTPTimings, //  是否启用 HTTP 时间测量
+    instrumentPageLoad, //  是否启用页面加载的自动检测
+    instrumentNavigation, // 是否启用导航的自动检测
   } = {
     ...DEFAULT_BROWSER_TRACING_OPTIONS,
     ..._options,
   };
 
+  // 这个函数开始收集 Web Vitals 指标，这些指标是用来衡量页面性能的关键指标，比如 CLS（布局偏移）
   const _collectWebVitals = startTrackingWebVitals({
     recordClsStandaloneSpans: enableStandaloneClsSpans || false,
   });
 
+  // 如果启用了 INP（交互延迟指标），则调用 startTrackingINP() 开始追踪 INP
   if (enableInp) {
     startTrackingINP();
   }
 
+  // 如果追踪长动画帧 且 全局对象中存在性能api 且 当前性能api 中包含 长动画帧
   if (
     enableLongAnimationFrame &&
     GLOBAL_OBJ.PerformanceObserver &&
     PerformanceObserver.supportedEntryTypes.includes('long-animation-frame')
   ) {
+    // 则启动长动画帧的追踪
     startTrackingLongAnimationFrames();
   } else if (enableLongTask) {
+    // 如果不支持长动画帧但启用了 enableLongTask，则追踪长任务
     startTrackingLongTasks();
   }
 
+  // 如果启用了交互追踪，则启动交互事件的追踪
   if (enableInteractions) {
     startTrackingInteractions();
   }
 
+  // 存储最新的路由信息，其中 name 和 source 初始化为 undefined，用于追踪当前路由
   const latestRoute: RouteInfo = {
     name: undefined,
     source: undefined,
   };
 
-  /** Create routing idle transaction. */
+  /**
+   * 用于创建新的路由 span， 这个 span 用于记录页面路由变化等信息
+   */
   function _createRouteSpan(
     client: Client,
     startSpanOptions: StartSpanOptions,
   ): Span {
+    // 检查当前操作是否为'pageload'，用于判断是否是页面加载的 span
     const isPageloadTransaction = startSpanOptions.op === 'pageload';
 
+    // 用户提供了路由创建前的回调，则调用它，否则直接使用原始的配置
     const finalStartSpanOptions: StartSpanOptions = beforeStartSpan
       ? beforeStartSpan(startSpanOptions)
       : startSpanOptions;
 
+    // 获取配置中的attributes ，没有定义则使用空对象
     const attributes = finalStartSpanOptions.attributes || {};
 
-    // If `finalStartSpanOptions.name` is different than `startSpanOptions.name`
-    // it is because `beforeStartSpan` set a custom name. Therefore we set the source to 'custom'.
+    // 如果开始前配置的name 和 结束后配置的name 不一致,则说明 用户提供的 beforeStartSpan 设置了一个自定义名称
     if (startSpanOptions.name !== finalStartSpanOptions.name) {
+      // 所以将 attributes 的来源设置为 custom
       attributes[SEMANTIC_ATTRIBUTE_SENTRY_SOURCE] = 'custom';
       finalStartSpanOptions.attributes = attributes;
     }
 
+    // 更新 latestRoute 的 name 和 source，用于记录当前路由的名称和来源
     latestRoute.name = finalStartSpanOptions.name;
     latestRoute.source = attributes[SEMANTIC_ATTRIBUTE_SENTRY_SOURCE];
 
+    // 创建一个新的空闲 span
     const idleSpan = startIdleSpan(finalStartSpanOptions, {
       idleTimeout,
       finalTimeout,
       childSpanTimeout,
-      // should wait for finish signal if it's a pageload transaction
+      // 如果是页面加载事务，应该等待完成信号，则禁止自动结束
       disableAutoFinish: isPageloadTransaction,
+      //  在 span 结束之前执行的操作，收集 Web Vitals 指标并添加性能条目
       beforeSpanEnd: (span) => {
         _collectWebVitals();
         addPerformanceEntries(span, {
@@ -309,35 +329,63 @@ export const browserTracingIntegration = ((
       },
     });
 
+    // 在文档状态为 interactive 或 complete 时触发 空闲Span 的自动结束信号
     function emitFinish(): void {
       if (['interactive', 'complete'].includes(WINDOW.document.readyState)) {
         client.emit('idleSpanEnableAutoFinish', idleSpan);
       }
     }
 
+    // 如果是页面加载事务 且是浏览器环境
     if (isPageloadTransaction && WINDOW.document) {
+      // 监听文档的 readystatechange 事件
+      // 以触发 emitFinish，确保页面加载的 span 在文档状态变更时自动完成。
       WINDOW.document.addEventListener('readystatechange', () => {
         emitFinish();
       });
 
+      /**
+       * 这里会主动触发一次,原因如下:
+       *
+       * 1. 防止错过 readystatechange 事件
+       *  - 假设文档的 readyState 已经达到了我们感兴趣的状态（例如 interactive 或 complete）
+       *  而此时才开始监听 readystatechange 事件。这种情况下，事件已经触发过，新的监听器将不会收到这个已经发生的事件
+       *
+       * 2. 优化性能，减少不必要的等待
+       *  - 手动调用时，会立即检查文档的当前状态,是否已经是 interactive 或 complete，这表示页面已经加载完成了
+       *  如果文档已经完成加载，那就无需等到下一次状态变更事件再触发 emitFinish()，可以提前执行相关的完成操作
+       *
+       * 3. 保证页面加载时的事务正确结束
+       *  - emitFinish() 的作用是结束页面加载相关的事务（span）,
+       *  页面加载的 span 只有在文档的 readyState 变为 interactive 或 complete 时才应该结束
+       *  页面可能在我们设置监听器之前就已经进入了这些状态。因此，通过手动调用 emitFinish()，可以保证即使页面已经加载，span 仍然会正确地结束
+       */
       emitFinish();
     }
 
+    // 返回空闲的 span
     return idleSpan;
   }
 
+  // 这里很类似插件的做法
   return {
     name: BROWSER_TRACING_INTEGRATION_ID,
+    // 这个函数主要负责处理页面加载、导航、交互以及外部请求的跟踪
     afterAllSetup(client) {
+      /** 当前激活的 span，用于追踪事务（如页面加载或导航） */
       let activeSpan: Span | undefined;
+      /** 保存当前页面的 URL，初始化为 WINDOW.location.href */
       let startingUrl: string | undefined =
         WINDOW.location && WINDOW.location.href;
 
+      // 监听导航开始事件
       client.on('startNavigationSpan', (startSpanOptions) => {
+        // 检查当前的 client 是否是调用者自身，防止跨 client 的事件干扰
         if (getClient() !== client) {
           return;
         }
 
+        // 如果有一个已经存在但尚未完成的 span，先结束它，避免重复
         if (activeSpan && !spanToJSON(activeSpan).timestamp) {
           DEBUG_BUILD &&
             logger.log(
@@ -347,12 +395,14 @@ export const browserTracingIntegration = ((
           activeSpan.end();
         }
 
+        // 为导航创建一个新的 span（导航事务）,将其设为当前 activeSpan
         activeSpan = _createRouteSpan(client, {
           op: 'navigation',
           ...startSpanOptions,
         });
       });
 
+      // 监听页面加载开始事件
       client.on('startPageLoadSpan', (startSpanOptions, traceOptions = {}) => {
         if (getClient() !== client) {
           return;
@@ -367,39 +417,58 @@ export const browserTracingIntegration = ((
           activeSpan.end();
         }
 
+        // 从元数据或请求头中获取跟踪信息，以便跨请求传播
         const sentryTrace =
           traceOptions.sentryTrace || getMetaContent('sentry-trace');
         const baggage = traceOptions.baggage || getMetaContent('baggage');
 
+        // 从这些头信息创建传播上下文，并设置到当前范围中
         const propagationContext = propagationContextFromHeaders(
           sentryTrace,
           baggage,
         );
         getCurrentScope().setPropagationContext(propagationContext);
 
+        // 为页面加载创建一个新的 span,将其设为当前 activeSpan
         activeSpan = _createRouteSpan(client, {
           op: 'pageload',
           ...startSpanOptions,
         });
       });
 
-      // A trace should to stay the consistent over the entire time span of one route.
-      // Therefore, when the initial pageload or navigation root span ends, we update the
-      // scope's propagation context to keep span-specific attributes like the `sampled` decision and
-      // the dynamic sampling context valid, even after the root span has ended.
-      // This ensures that the trace data is consistent for the entire duration of the route.
+      /**
+       * 这段注释解释了在浏览器跟踪中如何保持一次路由导航或页面加载的整个追踪（trace）的一致性，
+       * 即使在根 span（事务的起始部分）结束后，仍然确保相关的追踪信息继续有效
+       *
+       * 在单页应用程序（SPA）中，路由可以表示不同的页面或视图。当用户在应用中导航时，可能会触发多个事务（例如，页面加载或导航）
+       * 为了确保对这些事务的追踪是连续的，我们需要保持整个路由生命周期内的数据一致性。
+       *
+       * 因此，当初始的页面加载或导航根 span 结束时，我们更新作用域的传播上下文，
+       * 以保持 span 特定的属性（例如 sampled 决策和动态采样上下文）的有效性，即使根 span 已经结束
+       * 更新这些属性能够确保，即使一个事务已经结束，这些属性在后续的事务中仍然保持一致和有效
+       *
+       * 更新后的传播上下文能够保持事务之间的属性一致，尤其是在根事务（如页面加载或导航事务）结束之后。
+       * 因此，这可以确保在整个路由周期中，所有的事务追踪数据是一致的。这样能够避免在某些事务结束后出现不一致的追踪数据，确保跟踪数据的完整性和可靠性
+       *
+       */
+
+      // 监听 span 结束事件
       client.on('spanEnd', (span) => {
         const op = spanToJSON(span).op;
         if (
           span !== getRootSpan(span) ||
           (op !== 'navigation' && op !== 'pageload')
         ) {
+          // 如果当前 span  不是根 span 或者操作不是 navigation 和 pageload 跳过处理
           return;
         }
 
+        // 获取当前作用域
         const scope = getCurrentScope();
+        // 获取传播上下文
         const oldPropagationContext = scope.getPropagationContext();
 
+        // 更新当前作用域的传播上下文，确保 span 的跟踪信息一致，尤其是 sampled 标志和动态采样上下文
         scope.setPropagationContext({
           ...oldPropagationContext,
           sampled:
@@ -412,48 +481,66 @@ export const browserTracingIntegration = ((
         });
       });
 
+      // 全局对象中存在 location 的话
       if (WINDOW.location) {
+        // 如果启用了页面加载跟踪，则启动一个用于跟踪页面加载的 span
         if (instrumentPageLoad) {
           startBrowserTracingPageLoadSpan(client, {
+            // 当前页面的路径名
             name: WINDOW.location.pathname,
             // pageload should always start at timeOrigin (and needs to be in s, not ms)
+            // 页面加载应该始终从 timeOrigin 开始，转化为秒
             startTime: browserPerformanceTimeOrigin
               ? browserPerformanceTimeOrigin / 1000
               : undefined,
+            // 为 span 添加一些自定义属性
             attributes: {
-              [SEMANTIC_ATTRIBUTE_SENTRY_SOURCE]: 'url',
-              [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.pageload.browser',
+              [SEMANTIC_ATTRIBUTE_SENTRY_SOURCE]: 'url', // 跟踪的来源是 URL
+              [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.pageload.browser', // 一个自动的页面加载事务，源于浏览器
             },
           });
         }
 
+        // 如果启用了导航追踪，监听浏览器导航事件
         if (instrumentNavigation) {
           addHistoryInstrumentationHandler(({ to, from }) => {
             /**
-             * This early return is there to account for some cases where a navigation transaction starts right after
-             * long-running pageload. We make sure that if `from` is undefined and a valid `startingURL` exists, we don't
-             * create an uneccessary navigation transaction.
+             * 这段代码的目的是处理一种特定的边缘情况：在页面长时间加载后，可能会紧接着触发一次导航事件
+             * 在这种情况下，导航可能是无效的（例如，导航到相同的 URL），
+             * 因此我们需要避免为这个无效的导航创建不必要的 navigation span（导航事务）
              *
-             * This was hard to duplicate, but this behavior stopped as soon as this fix was applied. This issue might also
-             * only be caused in certain development environments where the usage of a hot module reloader is causing
-             * errors.
+             * 如果 from 是 undefined 且 startingUrl 存在，我们就不会为此次导航创建一个新的事务。这是为了确保避免重复跟踪无效的导航操作。
+             * 这保证了我们只为真正的导航操作创建事务，避免因浏览器状态或开发环境特殊情况（如开发工具或热模块重载器）造成的重复事务创建。
+             *
+             * 这个问题难以在所有环境下复现，但在某些情况下（特别是在开发过程中），此类冗余导航的现象确实存在。通过这段代码修复后，这种问题不再发生。
+             *
+             * 热模块重载器会动态替换模块，而无需刷新整个页面，这可能会导致导航状态变得混乱，从而触发重复的导航事件。
              */
             if (
+              // 如果 from 是 undefined，意味着浏览器在处理导航时并没有明确的来源 URL
+              // 这种情况可能发生在页面第一次加载后紧接着的导航操作，因为在这种情况下浏览器并没有一个上一个页面的明确 URL
+              // 在 SPA（单页面应用）中，当用户第一次加载应用时，from 可能没有值
               from === undefined &&
               startingUrl &&
+              // 如果 startingUrl 中包含 to，则说明这是一个重复的导航，避免不必要的事务跟踪
               startingUrl.indexOf(to) !== -1
             ) {
+              // 重置 startingUrl 为了防止后续的导航事件再次遇到同样的问题，
+              // 每次只要检测到这种无效导航，就会清空 startingUrl，确保后续的导航操作能够被正确跟踪
               startingUrl = undefined;
               return;
             }
 
+            // 检查导航是否真正发生了，即 from 和 to 是否不同
             if (from !== to) {
               startingUrl = undefined;
+              // 为这次导航创建一个新的 span
               startBrowserTracingNavigationSpan(client, {
+                // 将当前页面路径作为导航 span 的名称
                 name: WINDOW.location.pathname,
                 attributes: {
-                  [SEMANTIC_ATTRIBUTE_SENTRY_SOURCE]: 'url',
-                  [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.navigation.browser',
+                  [SEMANTIC_ATTRIBUTE_SENTRY_SOURCE]: 'url', // 跟踪的来源是 URL
+                  [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.navigation.browser', // 一个自动的导航事务，源于浏览器
                 },
               });
             }
@@ -461,10 +548,17 @@ export const browserTracingIntegration = ((
         }
       }
 
+      // 如果启用了后台标签页的追踪功能，是注册一个监听器以便检测用户在浏览器中切换到后台标签页时的行为
       if (markBackgroundSpan) {
+        // 检测当前标签页是否处于后台状态（例如，用户切换到其他标签页或最小化浏览器）
+        // 在标签页进入后台时，可能需要暂停某些操作（如定时器、动画等），而在返回到该标签页时再恢复这些操作
+        // 监控在后台标签页中执行的操作的性能，包括网络请求的响应时间、CPU 和内存的使用情况等
         registerBackgroundTabDetection();
       }
 
+      // 如果启用了用户交互追踪功能，将会注册一个监听器来监控用户的交互事件
+      // 用户交互（interactions）是应用性能监控中的关键因素，
+      // 通过追踪用户点击、滚动、键盘输入等操作，可以分析应用对这些交互的响应情况
       if (enableInteractions) {
         registerInteractionListener(
           idleTimeout,
@@ -474,15 +568,24 @@ export const browserTracingIntegration = ((
         );
       }
 
+      // 启用了 INP（Interaction to Next Paint）追踪功能，会注册一个监听器用于 INP 数据收集
+      // INP（Interaction to Next Paint）是一个用户交互性能指标，
+      // 衡量从用户交互到下一个页面渲染的时间。启用这个功能有助于了解应用在响应用户操作时的速度和性能
       if (enableInp) {
+        // 这个监听器会负责记录每次用户交互事件（如点击、输入）之后，页面渲染的响应时间。
+        // 这对于优化用户体验至关重要，因为它反映了应用在用户操作之后的响应速度。
         registerInpInteractionListener();
       }
 
+      // 对外部请求进行追踪（如 fetch 和 XHR 请求），并传入一系列配置选项
       instrumentOutgoingRequests(client, {
         traceFetch,
         traceXHR,
+        // 设置哪些目标（URL）应该启用追踪传播
         tracePropagationTargets: client.getOptions().tracePropagationTargets,
+        // 是否应该为某个请求创建一个 span，这是一个用于追踪该请求生命周期的逻辑判断
         shouldCreateSpanForRequest,
+        // 是否启用 HTTP 请求的时序数据追踪，能够监控从发起请求到响应完成的时间
         enableHTTPTimings,
       });
     },

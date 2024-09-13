@@ -7,6 +7,16 @@ export {
   // addInpInstrumentationHandler,
 } from './metrics/instrument';
 
+export {
+  addPerformanceEntries,
+  startTrackingInteractions,
+  startTrackingLongTasks,
+  startTrackingLongAnimationFrames,
+  startTrackingWebVitals,
+  startTrackingINP,
+  registerInpInteractionListener,
+} from './metrics/browserMetrics';
+
 export { addHistoryInstrumentationHandler } from './instrument/history';
 export {
   addXhrInstrumentationHandler,
