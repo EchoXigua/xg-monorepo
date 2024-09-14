@@ -3,6 +3,16 @@ import {
   addNonEnumerableProperty,
   // stripUrlQueryAndFragment,
 } from '@xigua-monitor/utils';
+import {
+  getClient,
+  getCurrentScope,
+  getIsolationScope,
+  withScope,
+} from '../currentScopes';
+import { getMainCarrier } from '../carrier';
+import type { AsyncContextStrategy } from '../asyncContext/types';
+import { _getSpanForScope, _setSpanForScope } from '../utils/spanOnScope';
+import { getAsyncContextStrategy } from '../asyncContext';
 
 // so it can be used in manual instrumentation without necessitating a hard dependency on @sentry/utils
 // export { stripUrlQueryAndFragment } from '@sentry/utils';

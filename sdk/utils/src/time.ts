@@ -89,3 +89,109 @@ function createUnixTimestampInSecondsFunc(): () => number {
  * See https://github.com/getsentry/sentry-javascript/issues/2590.
  */
 export const timestampInSeconds = createUnixTimestampInSecondsFunc();
+
+/**
+ * 用于存储当前使用的时间源模式,（如 timeOrigin、navigationStart 或 dateNow），仅用于调试。
+ */
+export let _browserPerformanceTimeOriginMode: string;
+
+/**
+ * 立即调用的函数表达式 (IIFE)，它会在模块加载时立即执行，并返回一个数字或未定义的值。
+ * 仅在浏览器中使用,且 performance API 支持的情况下
+ */
+export const browserPerformanceTimeOrigin = ((): number | undefined => {
+  // Unfortunately browsers may report an inaccurate time origin data, through either performance.timeOrigin or
+  // performance.timing.navigationStart, which results in poor results in performance data. We only treat time origin
+  // data as reliable if they are within a reasonable threshold of the current time.
+
+  // 从全局对象中获取 performance
+  const { performance } = GLOBAL_OBJ as typeof GLOBAL_OBJ & Window;
+
+  if (!performance || !performance.now) {
+    // 如果不存在或者不支持 now 方法 将模式设置为 'none' 并返回 undefined
+    _browserPerformanceTimeOriginMode = 'none';
+    return undefined;
+  }
+
+  /** 定义一个阈值为 1 小时 */
+  const threshold = 3600 * 1000;
+  /** 获取高精度时间戳（相对当前页面加载的时间 */
+  const performanceNow = performance.now();
+  /** 获取的系统时间戳 */
+  const dateNow = Date.now();
+
+  // 计算时间偏差
+  // 如果timeOrigin不可用，将 delta 设置为阈值，使其不被使用
+  /**
+   * timeOrigin:
+   *    是一个高精度的时间戳，表示文档加载开始的时间。
+   *    在不同的浏览器中，支持情况可能有所不同。例如，在 Safari 中，
+   *    performance.timeOrigin 可能是 undefined。因此，在使用这个属性时需要注意浏览器的兼容性
+   *
+   * performance.now()
+   *    返回一个表示自页面加载以来经过的毫秒数（带小数），可以用于精确的时间测量。
+   *    返回的值是相对于页面加载时间的增量时间，通常以毫秒为单位，精确到小数点后 1 位
+   * @example
+   *    假设一个函数在页面加载后运行，调用 performance.now() 可以获取这个函数执行时的精确时间。
+   *
+   * Date.now()
+   *    获取当前的时间戳，通常用于一般的时间记录，不涉及页面加载的上下文
+   *    精度较低，通常只提供到毫秒级，而不提供微秒或纳秒级的精度
+   */
+  const timeOriginDelta = performance.timeOrigin
+    ? Math.abs(performance.timeOrigin + performanceNow - dateNow)
+    : threshold;
+  // 判断其是否在阈值内
+  const timeOriginIsReliable = timeOriginDelta < threshold;
+
+  /**
+   * 1. 性能时间戳的演变:
+   *  performance.timing.navigationStart:
+   *    - 这个属性在早期的 Web 性能 API 中用于表示文档开始加载的时间。
+   *    它是基于页面导航的开始时间，通常被用作性能测量的基准点。
+   *    - 然而，由于一些限制（如其不够精确，且不适用于所有场景），navigationStart 已被标记为已弃用。
+   *
+   *  performance.timeOrigin:
+   *    - 这个属性是在 performance API 中引入的，用于提供文档开始加载的时间戳，且精度更高。
+   *    - 虽然 timeOrigin 是更现代的选择，但其支持情况并不如 performance.timing 广泛，
+   *    尤其在某些浏览器（如 Safari）中，performance.timeOrigin 可能是 undefined。
+   *
+   * 2. 浏览器支持情况
+   *  Safari:
+   *    - 在 Safari 浏览器中，performance.timeOrigin 在某些情况下可能不可用。
+   *    这意味着开发者在使用该属性时需要进行适当的兼容性检查，以确保代码能够在所有目标浏览器中正常工作。
+   *  Web Workers:
+   *    - 在 Web Workers 中，performance.timing 也不可用。这限制了开发者在后台线程中获取性能时间戳的能力。
+   *    Web Workers 是一种在后台线程中执行 JavaScript 的方式，通常用于处理不阻塞主线程的耗时任务。
+   *
+   * 3. 回退到 Date API
+   *    如果浏览器不支持 performance.timeOrigin，则开发者可以选择退回到 Date.now()
+   *    尽管 Date.now() 的精度低于 performance.now() 和 performance.timeOrigin，但它在几乎所有环境中都是可用的，确保了代码的兼容性。
+   */
+  // eslint-disable-next-line deprecation/deprecation
+  const navigationStart =
+    performance.timing && performance.timing.navigationStart;
+  const hasNavigationStart = typeof navigationStart === 'number';
+  // 如果navigationStart不可用，设置delta为threshold，不使用它
+  const navigationStartDelta = hasNavigationStart
+    ? Math.abs(navigationStart + performanceNow - dateNow)
+    : threshold;
+  const navigationStartIsReliable = navigationStartDelta < threshold;
+  // 这里的逻辑和 上面的类似
+
+  // 如果 timeOrigin 或 navigationStart 有可靠的时间源
+  if (timeOriginIsReliable || navigationStartIsReliable) {
+    // 根据偏差选择更可靠的时间源，并更新 _browserPerformanceTimeOriginMode。
+    if (timeOriginDelta <= navigationStartDelta) {
+      _browserPerformanceTimeOriginMode = 'timeOrigin';
+      return performance.timeOrigin;
+    } else {
+      _browserPerformanceTimeOriginMode = 'navigationStart';
+      return navigationStart;
+    }
+  }
+
+  // 如果没有可靠的时间源，默认返回当前的系统时间
+  _browserPerformanceTimeOriginMode = 'dateNow';
+  return dateNow;
+})();

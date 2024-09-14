@@ -12,7 +12,7 @@ import type {
 import {
   addNonEnumerableProperty,
   dropUndefinedKeys,
-  // generateSentryTraceHeader,
+  generateSentryTraceHeader,
   timestampInSeconds,
 } from '@xigua-monitor/utils';
 
@@ -47,6 +47,15 @@ export function spanToTraceContext(span: Span): TraceContext {
   const { parent_span_id } = spanToJSON(span);
 
   return dropUndefinedKeys({ parent_span_id, span_id, trace_id });
+}
+
+/**
+ * 将一个 Span 对象转换为 Sentry 的 sentry-trace 头部格式，用于在分布式系统中传递追踪信息。
+ */
+export function spanToTraceHeader(span: Span): string {
+  const { traceId, spanId } = span.spanContext();
+  const sampled = spanIsSampled(span);
+  return generateSentryTraceHeader(traceId, spanId, sampled);
 }
 
 /**
@@ -359,7 +368,6 @@ export function spanToTransactionTraceContext(span: Span): TraceContext {
 
 /**
  * 返回给定 Span 及其所有子孙的数组
- * Returns an array of the given span and all of its descendants.
  */
 export function getSpanDescendants(span: SpanWithPotentialChildren): Span[] {
   // 使用 Set 结构来存储 Span 对象，确保不会有重复的 Span
@@ -389,4 +397,14 @@ export function getSpanDescendants(span: SpanWithPotentialChildren): Span[] {
 
   // 将 Set 转换为数组并返回，包含所有的 Span 及其子孙
   return Array.from(resultSet);
+}
+
+/** 这只在Idle span内部使用 */
+export function removeChildSpanFromSpan(
+  span: SpanWithPotentialChildren,
+  childSpan: Span,
+): void {
+  if (span[CHILD_SPANS_FIELD]) {
+    span[CHILD_SPANS_FIELD].delete(childSpan);
+  }
 }

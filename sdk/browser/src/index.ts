@@ -20,3 +20,9 @@ export {
   // zodErrorsIntegration,
   // thirdPartyErrorFilterIntegration,
 } from '@xigua-monitor/core';
+
+export {
+  browserTracingIntegration,
+  startBrowserTracingNavigationSpan,
+  // startBrowserTracingPageLoadSpan,
+} from './tracing/browserTracingIntegration';

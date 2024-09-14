@@ -7,6 +7,26 @@ import {
   SEMANTIC_ATTRIBUTE_SENTRY_MEASUREMENT_UNIT,
   SEMANTIC_ATTRIBUTE_SENTRY_MEASUREMENT_VALUE,
 } from '../semanticAttributes';
+import { getActiveSpan, getRootSpan } from '../utils/spanUtils';
+
+/**
+ * Adds a measurement to the current active transaction.
+ */
+export function setMeasurement(
+  name: string,
+  value: number,
+  unit: MeasurementUnit,
+): void {
+  const activeSpan = getActiveSpan();
+  const rootSpan = activeSpan && getRootSpan(activeSpan);
+
+  if (rootSpan) {
+    rootSpan.addEvent(name, {
+      [SEMANTIC_ATTRIBUTE_SENTRY_MEASUREMENT_VALUE]: value,
+      [SEMANTIC_ATTRIBUTE_SENTRY_MEASUREMENT_UNIT]: unit as string,
+    });
+  }
+}
 
 /**
  * 这个函数其主要功能是将一组定时事件 (TimedEvent[]) 转换为测量结果 (Measurements)，

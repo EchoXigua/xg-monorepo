@@ -55,7 +55,7 @@ export function resetInstrumentationHandlers(): void {
 }
 
 /**
- * 可能运行一个仪器化函数，除非它已经被调用过
+ * 可能运行一个监控函数，除非它已经被调用过
  * 检查 instrumented 对象中是否已经标记了该类型。
  * 如果没有，则调用传入的 instrumentFn 函数，并将该类型标记为已调用。
  */
