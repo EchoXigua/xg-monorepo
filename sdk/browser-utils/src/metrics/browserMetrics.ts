@@ -567,49 +567,74 @@ function _addTtfbRequestTimeToMeasurements(_measurements: Measurements): void {
 }
 
 /**
- * Starts tracking the Cumulative Layout Shift on the current page and collects the value and last entry
- * to the `_measurements` object which ultimately is applied to the pageload span's measurements.
+ * 这个函数 _trackCLS 用于跟踪 CLS（Cumulative Layout Shift，累计布局偏移），即页面加载过程中布局偏移的累计值。
+ * CLS 是衡量用户体验的一个关键性能指标，它描述了页面元素在加载过程中发生视觉位置变化的频率和幅度，
+ * 任何非用户主动触发的布局变化都会影响 CLS 的数值。
+ *
+ * CLS 的数据会应用到与页面加载相关的 span（跟踪事务的一部分）的测量数据中。
+ * 这意味着页面加载性能报告中会包含 CLS 相关的信息，以反映用户在页面加载过程中所体验到的视觉稳定性。
  */
 function _trackCLS(): () => void {
+  // 注册对 CLS 指标的监听器，监控页面中的布局偏移
   return addClsInstrumentationHandler(({ metric }) => {
+    // 获取了最后一个布局偏移条目，这个条目反映了页面最近一次发生的布局变化
     const entry = metric.entries[metric.entries.length - 1] as
       | LayoutShift
       | undefined;
     if (!entry) {
       return;
     }
+
     DEBUG_BUILD && logger.log(`[Measurements] Adding CLS ${metric.value}`);
+    // 存储 CLS 的值， CLS 没有具体的时间单位
     _measurements['cls'] = { value: metric.value, unit: '' };
+    // 将最后的布局偏移条目保存到全局 _clsEntry 变量中，以便后续可能需要对该条目进行进一步处理或分析
     _clsEntry = entry;
   }, true);
 }
 
-/** Starts tracking the Largest Contentful Paint on the current page. */
+/**
+ * 该函数用于跟踪 LCP（Largest Contentful Paint，最大内容绘制），即页面上最大的可见内容元素（如图片、块级元素）加载完成的时间
+ */
 function _trackLCP(): () => void {
+  // 这个函数捕获 LCP 事件的性能数据
   return addLcpInstrumentationHandler(({ metric }) => {
+    // 获取最近的性能条目entry。
     const entry = metric.entries[metric.entries.length - 1];
     if (!entry) {
       return;
     }
 
     DEBUG_BUILD && logger.log('[Measurements] Adding LCP');
+
+    // 存储 LCP 的值 metric.value 表示 LCP 的时间，单位为毫秒
     _measurements['lcp'] = { value: metric.value, unit: 'millisecond' };
+    // 将 LCP 条目存储为全局变量，以便后续可能的处理
     _lcpEntry = entry as LargestContentfulPaint;
   }, true);
 }
 
-/** Starts tracking the First Input Delay on the current page. */
+/**
+ * 该函数用于跟踪网页的 FID（首次输入延迟），即用户首次与页面交互（如点击、按键等）到浏览器实际响应该事件之间的时间
+ */
 function _trackFID(): () => void {
+  // 一个监听器，用来捕获 FID 性能数据
   return addFidInstrumentationHandler(({ metric }) => {
+    // 获取最近的性能条目 entry
     const entry = metric.entries[metric.entries.length - 1];
     if (!entry) {
       return;
     }
 
+    // 浏览器加载的起点时间，将其转换为秒
     const timeOrigin = msToSec(browserPerformanceTimeOrigin as number);
+    // 表示用户与页面交互的时间，转换为秒
     const startTime = msToSec(entry.startTime);
     DEBUG_BUILD && logger.log('[Measurements] Adding FID');
+
+    // 存储 FID 的值，单位为毫秒
     _measurements['fid'] = { value: metric.value, unit: 'millisecond' };
+    // 记录事件的发生时间，单位为秒
     _measurements['mark.fid'] = {
       value: timeOrigin + startTime,
       unit: 'second',
@@ -617,14 +642,21 @@ function _trackFID(): () => void {
   });
 }
 
+/**
+ * 该函数用于跟踪 TTFB（Time to First Byte），即浏览器从服务器接收到第一个字节所花费的时间
+ * @returns
+ */
 function _trackTtfb(): () => void {
+  // 这个函数用于捕获 TTFB 事件
   return addTtfbInstrumentationHandler(({ metric }) => {
+    // 获取最近的性能条目 entry
     const entry = metric.entries[metric.entries.length - 1];
     if (!entry) {
       return;
     }
 
     DEBUG_BUILD && logger.log('[Measurements] Adding TTFB');
+    // 存储 TTFB 的值，单位毫秒
     _measurements['ttfb'] = { value: metric.value, unit: 'millisecond' };
   });
 }

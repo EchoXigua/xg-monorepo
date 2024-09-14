@@ -2,6 +2,7 @@ import { getFunctionName, logger } from '@xigua-monitor/utils';
 
 import { DEBUG_BUILD } from '../debug-build';
 import { observe } from './web-vitals/lib/observe';
+import { onCLS } from './web-vitals/getCLS';
 
 /**
  * 定义了与浏览器性能相关的事件类型
@@ -32,6 +33,87 @@ type InstrumentHandlerTypePerformanceObserver =
  */
 type InstrumentHandlerTypeMetric = 'cls' | 'lcp' | 'fid' | 'ttfb' | 'inp';
 
+/**
+ * 这个接口定义了 Web Vitals 指标的结构
+ * 如：CLS（Cumulative Layout Shift）、FID（First Input Delay）、LCP（Largest Contentful Paint）等
+ */
+interface Metric {
+  /**
+   * 指标的名称，使用缩写形式。表示不同的性能指标
+   *
+   * @example
+   * CLS: Cumulative Layout Shift，累计布局偏移
+   * FCP: First Contentful Paint，首次内容绘制
+   * FID: First Input Delay，首次输入延迟
+   * INP: Interaction to Next Paint，交互到下一次绘制
+   * LCP: Largest Contentful Paint，最大内容绘制
+   * TTFB: Time to First Byte，从请求到接收第一个字节的时间
+   */
+  name: 'CLS' | 'FCP' | 'FID' | 'INP' | 'LCP' | 'TTFB';
+
+  /**
+   * 指标的当前数值，表示对应性能指标的度量值
+   * 例如 CLS 值、FID 延迟时间等
+   */
+  value: number;
+
+  /**
+   * 指标数值的评级，用于评估页面的用户体验
+   *
+   * good（表现良好），needs-improvement（需要改进），poor（表现较差）
+   */
+  rating: 'good' | 'needs-improvement' | 'poor';
+
+  /**
+   * 该指标相对于上次报告时的变化量，首次报告时，delta 等于 value
+   * 在某些性能指标如 CLS 中，这个 delta 表示最新的变化。
+   */
+  delta: number;
+
+  /**
+   * 唯一标识符，用来区分此指标实例
+   *
+   * 可以用于去重（例如，避免同一指标重复发送），或者用于将多个变化量（delta）进行分组计算总值
+   * 当页面从缓存恢复时，新的指标对象会被创建，这个 id 可以用于识别不同的实例
+   */
+  id: string;
+
+  /**
+   * 与该指标值计算相关的性能条目
+   *
+   * 该指标是基于某些性能条目计算得出的，条目会存储在这个数组中。
+   * 如果没有相关条目（例如，CLS 值为 0 且没有布局偏移），该数组可能为空。
+   */
+  entries: PerformanceEntry[];
+
+  /**
+   * 页面导航的类型
+   *
+   * 这个属性基于 Navigation Timing API 获取，提供了与网页导航相关的性能信息，帮助开发者分析页面的加载性能
+   *
+   *  - 如果浏览器不支持该 API，则 navigationType 的值会是 undefined
+   *
+   *  - 当页面从 bfcache 恢复时，navigationType 的值会设置为 'back-forward-cache'，
+   *  以表明这是一次从缓存中恢复的导航。这有助于开发者区别这种导航与正常的页面加载或重新加载
+   *  - bfcache: 指的是 Back/Forward Cache，浏览器用于缓存完整的页面状态，
+   *  以便用户使用浏览器的 "前进" 或 "后退" 按钮时能够快速恢复页面
+   *
+   * navigate: 通过正常导航（如点击链接）进入
+   * reload: 页面是通过刷新加载的
+   * back-forward: 页面通过浏览器的前进或后退按钮加载
+   * back-forward-cache: 页面是从后退/前进缓存中恢复的
+   * prerender: 页面是预渲染的
+   * restore: 恢复页面状态
+   */
+  navigationType:
+    | 'navigate'
+    | 'reload'
+    | 'back-forward'
+    | 'back-forward-cache'
+    | 'prerender'
+    | 'restore';
+}
+
 /** 清理函数类型 */
 type CleanupHandlerCallback = () => void;
 
@@ -51,6 +133,62 @@ const handlers: {
 } = {};
 /** 用于记录某个事件类型是否已经被监听，避免重复监听 */
 const instrumented: { [key in InstrumentHandlerType]?: boolean } = {};
+
+/**
+ * 用于存储最近一次 Cumulative Layout Shift (CLS) 指标的值
+ * CLS 衡量的是网页内容的视觉稳定性，主要关注布局移动带来的用户体验问题。
+ */
+let _previousCls: Metric | undefined;
+/**
+ * 用于存储最近一次 First Input Delay (FID) 指标的值
+ * FID 衡量的是用户第一次与页面交互（例如点击按钮、输入等）与浏览器响应之间的延迟时间。
+ */
+let _previousFid: Metric | undefined;
+/**
+ * 用于存储最近一次 Largest Contentful Paint (LCP) 指标的值。
+ * LCP 测量的是页面主要内容的加载时间，通常用于衡量页面的感知加载速度。
+ */
+let _previousLcp: Metric | undefined;
+/**
+ * 用于存储最近一次 Time to First Byte (TTFB) 指标的值。
+ * TTFB 测量的是从用户请求到浏览器接收到第一个字节响应所用的时间，通常用于衡量网络响应速度。
+ */
+let _previousTtfb: Metric | undefined;
+/**
+ * 用于存储最近一次 Interaction to Next Paint (INP) 指标的值。
+ * INP 是衡量用户交互的延迟情况，比如点击或输入时与页面渲染之间的延迟，提供更全面的交互延迟指标
+ */
+let _previousInp: Metric | undefined;
+
+/**
+ * 这个函数主要作用是监听 CLS（Cumulative Layout Shift） 指标，并在 CLS 数据可用时触发回调函数
+ *
+ * 函数会返回一个清理回调，这个回调函数可以用于移除当前的 CLS 监听器（或处理器）。
+ * 当不再需要监听 CLS 指标时，可以调用这个清理回调函数来停止监听。
+ *
+ * 如果在调用该函数时传入 stopOnCallback = true，则在回调函数触发后，CLS 监听会自动停止。
+ * 这意味着 CLS 监听器在第一次获取到指标后就不再继续监听。
+ * 此时 CLS 指标会被固定下来，不再更新。这个过程称为 "CLS being finalized and frozen"，即固定并冻结了当前的 CLS 值
+ * 导致CLS最终确定并冻结
+ *
+ *
+ * @param callback 回调函数
+ * @param stopOnCallback 是否在回调函数执行后停止监听 CLS
+ * @returns 返回一个清理回调函数
+ */
+export function addClsInstrumentationHandler(
+  callback: (data: { metric: Metric }) => void,
+  stopOnCallback = false,
+): CleanupHandlerCallback {
+  // 添加对 CLS 指标的观察
+  return addMetricObserver(
+    'cls', // 指定要观察的性能指标是 CLS
+    callback, // 当 CLS 数据可用时，执行这个回调函数
+    instrumentCls, // 一个负责启动 CLS 监听的函数
+    _previousCls, // 这个保存了之前 CLS 的状态，用来对比和更新
+    stopOnCallback, // 如果为 true，则当回调触发后停止监听
+  );
+}
 
 export function addPerformanceInstrumentationHandler(
   type: 'event',
@@ -189,4 +327,73 @@ function getCleanupCallback(
       typeHandlers.splice(index, 1);
     }
   };
+}
+
+/**
+ * 这个函数的主要作用是为某种性能指标添加观察器，并在指标更新时执行回调
+ * 它还提供了一个清理机制，可以在不需要观察该指标时移除处理器
+ *
+ * @param type 要观察的性能指标类型（比如 'cls' 或 'lcp' 等）
+ * @param callback 当指标数据可用时，执行的回调函数
+ * @param instrumentFn 启动监听该指标的函数，返回一个停止监听的函数
+ * @param previousValue 如果有之前的指标数据，会立即调用回调并传递该数据
+ * @param stopOnCallback 表示是否在回调执行后停止监听 默认false
+ * @returns 返回一个清理回调函数，用于停止监听该指标
+ */
+function addMetricObserver(
+  type: InstrumentHandlerTypeMetric,
+  callback: InstrumentHandlerCallback,
+  instrumentFn: () => StopListening,
+  previousValue: Metric | undefined,
+  stopOnCallback = false,
+): CleanupHandlerCallback {
+  // 为指定的类型 注册处理函数
+  addHandler(type, callback);
+
+  // 存储监听停止的函数
+  let stopListening: StopListening | undefined;
+
+  // 检查是否已经为该类型的指标添加了监听器
+  if (!instrumented[type]) {
+    // 如果还没有监听器，调用 instrumentFn() 来开始监听，并将返回的停止监听函数赋值给 stopListening
+    stopListening = instrumentFn();
+    // 标记该类型的指标已经被监听，避免重复添加监听
+    instrumented[type] = true;
+  }
+
+  // 如果有之前保存的 previousValue，立即调用回调函数 callback 并传递之前的指标数据
+  // 这种情况下，即使是之前发生的事件，也能让回调函数立即处理
+  if (previousValue) {
+    callback({ metric: previousValue });
+  }
+
+  // 获取清理函数。这个清理函数可以在不需要观察该指标时调用，用于移除处理器。
+  return getCleanupCallback(
+    type,
+    callback,
+    stopOnCallback ? stopListening : undefined,
+  );
+}
+
+/**
+ * 这个函数的作用是启动对 Cumulative Layout Shift (CLS) 指标的监听，并在 CLS 值更新时触发回调处理器
+ * 使用了 onCLS 函数来监听 CLS 的变化，并将 CLS 的最新指标传递给处理器函数，还提供了清理机制，用于停止监听
+ * @returns
+ */
+function instrumentCls(): StopListening {
+  // 这里才是真正的 cls 监听处理
+  return onCLS(
+    (metric) => {
+      // 触发 cls 事件，所有注册过 cls 相关的处理函数，都会被执行
+      triggerHandlers('cls', {
+        metric,
+      });
+      // 将当前的 CLS 指标对象 metric 存储在全局变量 _previousCls 中，以便后续使用
+      _previousCls = metric;
+    },
+    // 第二个参数是传递给 onCLS 的配置项，默认情况下，CLS 的更新只会在浏览器标签页进入后台时触发回调
+    // 通过设置 reportAllChanges: true，我们强制回调函数在每次 CLS 值变化时都被调用，而不只是标签页切换到后台时
+    // 这确保了每当页面布局发生变化导致 CLS 更新时，我们的回调都会及时执行，而不是延迟到页面不再活动。
+    { reportAllChanges: true },
+  );
 }
