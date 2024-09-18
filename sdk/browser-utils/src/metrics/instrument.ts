@@ -3,6 +3,7 @@ import { getFunctionName, logger } from '@xigua-monitor/utils';
 import { DEBUG_BUILD } from '../debug-build';
 import { observe } from './web-vitals/lib/observe';
 import { onCLS } from './web-vitals/getCLS';
+import { onLCP } from './web-vitals/getLCP';
 
 /**
  * 定义了与浏览器性能相关的事件类型
@@ -188,6 +189,46 @@ export function addClsInstrumentationHandler(
     _previousCls, // 这个保存了之前 CLS 的状态，用来对比和更新
     stopOnCallback, // 如果为 true，则当回调触发后停止监听
   );
+}
+
+/**
+ * 添加一个回调，当LCP度量可用时将触发该回调
+ * LCP 是衡量页面加载性能的重要指标，表示视口中最大的可见内容元素的渲染时间
+ * 返回一个清理回调，允许停止监听
+ *
+ * 如果参数 stopOnCallback 设置为 true，在清理回调被调用时，将停止对 LCP（Largest Contentful Paint） 指标的监听
+ * 会导致当前的 LCP 值被“最终确定”和“冻结”，也就是说之后不会再更新或改变该值
+ */
+export function addLcpInstrumentationHandler(
+  callback: (data: { metric: Metric }) => void,
+  stopOnCallback = false,
+): CleanupHandlerCallback {
+  return addMetricObserver(
+    'lcp',
+    callback,
+    instrumentLcp,
+    _previousLcp,
+    stopOnCallback,
+  );
+}
+
+/**
+ * 这个函数实现了 FID（First Input Delay） 指标的监控和回调机制
+ * 当 FID 数据可用时，注册的回调函数将被调用。同时，返回一个清理函数，允许用户在不需要时移除监听器
+ */
+export function addFidInstrumentationHandler(
+  callback: (data: { metric: Metric }) => void,
+): CleanupHandlerCallback {
+  return addMetricObserver('fid', callback, instrumentFid, _previousFid);
+}
+
+/**
+ * Add a callback that will be triggered when a FID metric is available.
+ */
+export function addTtfbInstrumentationHandler(
+  callback: (data: { metric: Metric }) => void,
+): CleanupHandlerCallback {
+  return addMetricObserver('ttfb', callback, instrumentTtfb, _previousTtfb);
 }
 
 export function addPerformanceInstrumentationHandler(
@@ -396,4 +437,46 @@ function instrumentCls(): StopListening {
     // 这确保了每当页面布局发生变化导致 CLS 更新时，我们的回调都会及时执行，而不是延迟到页面不再活动。
     { reportAllChanges: true },
   );
+}
+
+/**
+ * 负责真正的 LCP 监控逻辑，使用 onLCP 来监听 LCP 数据的变化，
+ * 并在每次 LCP 值更新时触发回调，传递最新的 metric 数据
+ * @returns
+ */
+function instrumentLcp(): StopListening {
+  return onLCP(
+    (metric) => {
+      triggerHandlers('lcp', {
+        metric,
+      });
+      _previousLcp = metric;
+    },
+    // 我们希望每次 LCP 值更新时都调用回调函数。默认情况下，回调只在选项卡进入后台时调用
+    { reportAllChanges: true },
+  );
+}
+
+/**
+ * 负责真正的 FID 监控逻辑，使用 onFID 进行指标监听，
+ * 并在指标产生时，调用回调函数 triggerHandlers 触发相关事件
+ *
+ * @returns
+ */
+function instrumentFid(): void {
+  return onFID((metric) => {
+    triggerHandlers('fid', {
+      metric,
+    });
+    _previousFid = metric;
+  });
+}
+
+function instrumentTtfb(): StopListening {
+  return onTTFB((metric) => {
+    triggerHandlers('ttfb', {
+      metric,
+    });
+    _previousTtfb = metric;
+  });
 }
