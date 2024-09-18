@@ -5,6 +5,8 @@ import { observe } from './web-vitals/lib/observe';
 import { onCLS } from './web-vitals/getCLS';
 import { onLCP } from './web-vitals/getLCP';
 import { onFID } from './web-vitals/getFID';
+import { onTTFB } from './web-vitals/onTTFB';
+import { onINP } from './web-vitals/getINP';
 
 /**
  * 定义了与浏览器性能相关的事件类型
@@ -224,7 +226,7 @@ export function addFidInstrumentationHandler(
 }
 
 /**
- * Add a callback that will be triggered when a FID metric is available.
+ * 添加一个回调，当 TTFB 指标可用时触发
  */
 export function addTtfbInstrumentationHandler(
   callback: (data: { metric: Metric }) => void,
@@ -473,11 +475,18 @@ function instrumentFid(): void {
   });
 }
 
+/**
+ * 用于启动对 TTFB 的监控
+ * @returns
+ */
 function instrumentTtfb(): StopListening {
   return onTTFB((metric) => {
+    // 触发与 TTFB 指标相关的所有处理函数
     triggerHandlers('ttfb', {
       metric,
     });
+    // 将当前的 TTFB 指标值存储，以便后续使用和比较
+    // 这有助于保持对 TTFB 值的历史记录，以便在需要时进行分析
     _previousTtfb = metric;
   });
 }
