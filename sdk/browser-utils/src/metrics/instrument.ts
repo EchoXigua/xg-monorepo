@@ -4,6 +4,7 @@ import { DEBUG_BUILD } from '../debug-build';
 import { observe } from './web-vitals/lib/observe';
 import { onCLS } from './web-vitals/getCLS';
 import { onLCP } from './web-vitals/getLCP';
+import { onFID } from './web-vitals/getFID';
 
 /**
  * 定义了与浏览器性能相关的事件类型

@@ -30,24 +30,29 @@ import type {
   ReportOpts,
 } from './types';
 
-/** Thresholds for LCP. See https://web.dev/articles/lcp#what_is_a_good_lcp_score */
+/**
+ * LCP 的评分标准（阈值）
+ * 良好：小于 2500 毫秒:
+ * 需要改进：2500 毫秒 ~ 4000 毫秒
+ * 差：大于 4000 毫秒
+ *
+ * See https://web.dev/articles/lcp#what_is_a_good_lcp_score
+ */
 export const LCPThresholds: MetricRatingThresholds = [2500, 4000];
 
+/** 跟踪已经报告过的 LCP 性能指标的 ID，以避免重复报告同一指标 */
 const reportedMetricIDs: Record<string, boolean> = {};
 
 /**
  * 这个函数的作用是对 LCP（Largest Contentful Paint） 指标的监测和报告
  * LCP 是一个重要的性能指标，用于衡量用户在页面加载过程中看到的最大内容渲染所需的时间
+ * LCP 值将以高分辨率时间戳（DOMHighResTimeStamp）的形式报告，通常是从页面加载开始的时间
  *
- * Calculates the [LCP](https://web.dev/articles/lcp) value for the current page and
- * calls the `callback` function once the value is ready (along with the
- * relevant `largest-contentful-paint` performance entry used to determine the
- * value). The reported value is a `DOMHighResTimeStamp`.
+ * Calculates the [LCP](https://web.dev/articles/lcp)
  *
- * If the `reportAllChanges` configuration option is set to `true`, the
- * `callback` function will be called any time a new `largest-contentful-paint`
- * performance entry is dispatched, or once the final value of the metric has
- * been determined.
+ * 如果配置选项 reportAllChanges 被设置为 true，则每当新的 LCP 性能条目被分发时，回调函数都会被调用。
+ * 这意味着即使 LCP 值没有最终确定，任何新的变化都会触发报告。
+ * 这种灵活性允许开发者更频繁地获取和报告性能数据，可能对性能优化和监控非常重要
  */
 export const onLCP = (onReport: LCPReportCallback, opts: ReportOpts = {}) => {
   // 确保在页面被激活时（非预渲染状态）才开始监测 LCP
