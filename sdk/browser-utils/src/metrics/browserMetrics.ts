@@ -111,6 +111,55 @@ export function startTrackingWebVitals({
   return () => undefined;
 }
 
+/**
+ * 用于跟踪用户交互事件，特别是点击事件
+ */
+export function startTrackingInteractions(): void {
+  // 监听 event 类型的性能条目
+  addPerformanceInstrumentationHandler('event', ({ entries }) => {
+    // 确保有活跃的 Span
+    if (!getActiveSpan()) {
+      return;
+    }
+
+    for (const entry of entries) {
+      // 处理点击事件
+      if (entry.name === 'click') {
+        // 计算时间
+        const startTime = msToSec(
+          (browserPerformanceTimeOrigin as number) + entry.startTime,
+        );
+        const duration = msToSec(entry.duration);
+
+        // 创建一个 span 配置对象
+        const spanOptions: StartSpanOptions &
+          Required<Pick<StartSpanOptions, 'attributes'>> = {
+          name: htmlTreeAsString(entry.target),
+          op: `ui.interaction.${entry.name}`,
+          startTime: startTime,
+          attributes: {
+            [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+          },
+        };
+
+        // 数获取事件目标的组件名称
+        const componentName = getComponentName(entry.target);
+        if (componentName) {
+          // 如果存在，将其添加到属性中
+          spanOptions.attributes['ui.component_name'] = componentName;
+        }
+
+        // 创建一个 不活跃的 span，传入配置对象
+        const span = startInactiveSpan(spanOptions);
+        if (span) {
+          // 如果成功创建 Span，则调用 span.end 方法结束该 Span
+          span.end(startTime + duration);
+        }
+      }
+    }
+  });
+}
+
 export { startTrackingINP, registerInpInteractionListener } from './inp';
 
 interface AddPerformanceEntriesOptions {

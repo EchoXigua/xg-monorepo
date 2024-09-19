@@ -177,19 +177,24 @@ function _htmlElementAsString(el: unknown, keyAttrs?: string[]): string {
 }
 
 /**
- * Given a DOM element, traverses up the tree until it finds the first ancestor node
- * that has the `data-sentry-component` or `data-sentry-element` attribute with `data-sentry-component` taking
- * precendence. This attribute is added at build-time by projects that have the component name annotation plugin installed.
+ * 用于在给定的 DOM 元素中向上遍历树，寻找第一个具有特定数据属性的祖先节点
+ * 寻找的属性为 data-sentry-component 或 data-sentry-element，
+ * 其中 data-sentry-component 属性优先级更高。
  *
- * @returns a string representation of the component for the provided DOM element, or `null` if not found
+ * 这个属性是在项目构建时由安装了组件名称注解插件的项目添加的。
+ * 说明这个功能通常是在开发阶段就注入到 HTML 中，以便于后续的跟踪和监控。
+ *
+ * @returns 所提供的DOM元素的组件的字符串表示形式，如果没有找到，则为 null
  */
 export function getComponentName(elem: unknown): string | null {
   // @ts-expect-error WINDOW has HTMLElement
+  // 确定当前环境是否支持 DOM 操作
   if (!WINDOW.HTMLElement) {
     return null;
   }
 
   let currentElem = elem as SimpleNode;
+  // 最大遍历高度，表示最多向上遍历 5 个层级的父节点
   const MAX_TRAVERSE_HEIGHT = 5;
   for (let i = 0; i < MAX_TRAVERSE_HEIGHT; i++) {
     if (!currentElem) {
@@ -197,6 +202,7 @@ export function getComponentName(elem: unknown): string | null {
     }
 
     if (currentElem instanceof HTMLElement) {
+      // 检查是否存在 sentryComponent 、sentryElement 属性，如果存在返回其值
       if (currentElem.dataset['sentryComponent']) {
         return currentElem.dataset['sentryComponent'];
       }
@@ -205,6 +211,7 @@ export function getComponentName(elem: unknown): string | null {
       }
     }
 
+    // 更新当前元素，继续向上遍历
     currentElem = currentElem.parentNode;
   }
 
