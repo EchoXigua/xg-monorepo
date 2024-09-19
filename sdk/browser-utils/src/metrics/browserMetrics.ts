@@ -112,6 +112,115 @@ export function startTrackingWebVitals({
 }
 
 /**
+ * 监控浏览器主线程上的长任务，帮助开发者识别可能导致 UI 卡顿的代码
+ * 通过跟踪长任务，开发者可以更好地理解应用程序性能，并作出相应的优化
+ */
+export function startTrackingLongTasks(): void {
+  // 监听 longtask 类型的性能事件
+  addPerformanceInstrumentationHandler('longtask', ({ entries }) => {
+    // 确保存在活跃的 span
+    if (!getActiveSpan()) {
+      return;
+    }
+
+    for (const entry of entries) {
+      // 计算时间
+      const startTime = msToSec(
+        (browserPerformanceTimeOrigin as number) + entry.startTime,
+      );
+      const duration = msToSec(entry.duration);
+
+      // 创建一个不活跃的 span
+      const span = startInactiveSpan({
+        name: 'Main UI thread blocked',
+        op: 'ui.long-task',
+        startTime,
+        attributes: {
+          [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+        },
+      });
+      if (span) {
+        // 如果成功创建了就结束它
+        span.end(startTime + duration);
+      }
+    }
+  });
+}
+
+/**
+ * 监控浏览器主线程上的长动画帧，帮助开发者识别可能导致动画卡顿的代码
+ */
+export function startTrackingLongAnimationFrames(): void {
+  /**
+   * 当前使用的 web-vitals 版本不支持 long-animation-frame，因此直接观察 long-animation-frame 事件
+   */
+  const observer = new PerformanceObserver((list) => {
+    // 确保存在活跃的 span
+    if (!getActiveSpan()) {
+      return;
+    }
+
+    for (const entry of list.getEntries() as PerformanceLongAnimationFrameTiming[]) {
+      // 如果没有脚本信息，则跳过该条目。entry.scripts 数组的第一个元素用于获取动画帧的执行上下文
+      if (!entry.scripts[0]) {
+        continue;
+      }
+
+      // 计算时间
+      const startTime = msToSec(
+        (browserPerformanceTimeOrigin as number) + entry.startTime,
+      );
+      const duration = msToSec(entry.duration);
+
+      // 构建属性
+      const attributes: SpanAttributes = {
+        [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+      };
+
+      // 获取脚本信息
+      const initialScript = entry.scripts[0];
+      // 从脚本信息提取信息
+      const {
+        invoker, // 调用者的名称
+        invokerType, // 调用者的类型
+        sourceURL, //  脚本的源 URL
+        sourceFunctionName, // 源函数的名称
+        sourceCharPosition, // 源代码中的字符位置
+      } = initialScript;
+
+      // 将提取到的信息添加到 attributes 对象中
+      attributes['browser.script.invoker'] = invoker;
+      attributes['browser.script.invoker_type'] = invokerType;
+      if (sourceURL) {
+        attributes['code.filepath'] = sourceURL;
+      }
+      if (sourceFunctionName) {
+        attributes['code.function'] = sourceFunctionName;
+      }
+      if (sourceCharPosition !== -1) {
+        attributes['browser.script.source_char_position'] = sourceCharPosition;
+      }
+
+      // 创建一个不活跃的 span
+      const span = startInactiveSpan({
+        name: 'Main UI thread blocked',
+        op: 'ui.long-animation-frame',
+        startTime,
+        attributes,
+      });
+      if (span) {
+        // 成功创建后结束它 记录动画帧的完成时间
+        span.end(startTime + duration);
+      }
+    }
+  });
+
+  // 开始观察  long-animation-frame 类型的事件
+  // buffered: true 以便接收缓冲的条目
+  observer.observe({ type: 'long-animation-frame', buffered: true });
+}
+
+/**
  * 用于跟踪用户交互事件，特别是点击事件
  */
 export function startTrackingInteractions(): void {
