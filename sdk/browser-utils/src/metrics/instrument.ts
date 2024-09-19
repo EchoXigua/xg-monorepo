@@ -37,6 +37,18 @@ type InstrumentHandlerTypePerformanceObserver =
  */
 type InstrumentHandlerTypeMetric = 'cls' | 'lcp' | 'fid' | 'ttfb' | 'inp';
 
+interface PerformanceScriptTiming extends PerformanceEntry {
+  sourceURL: string;
+  sourceFunctionName: string;
+  sourceCharPosition: number;
+  invoker: string;
+  invokerType: string;
+}
+
+export interface PerformanceLongAnimationFrameTiming extends PerformanceEntry {
+  scripts: PerformanceScriptTiming[];
+}
+
 /**
  * 这个接口定义了 Web Vitals 指标的结构
  * 如：CLS（Cumulative Layout Shift）、FID（First Input Delay）、LCP（Largest Contentful Paint）等
@@ -232,6 +244,18 @@ export function addTtfbInstrumentationHandler(
   callback: (data: { metric: Metric }) => void,
 ): CleanupHandlerCallback {
   return addMetricObserver('ttfb', callback, instrumentTtfb, _previousTtfb);
+}
+
+/**
+ * 这个函数用于添加一个回调函数，当 INP 指标可用时，该回调函数会被触发
+ * 返回一个清理函数，当调用这个清理函数时，可以移除这个监听处理器。
+ */
+export function addInpInstrumentationHandler(
+  callback: (data: {
+    metric: Omit<Metric, 'entries'> & { entries: PerformanceEventTiming[] };
+  }) => void,
+): CleanupHandlerCallback {
+  return addMetricObserver('inp', callback, instrumentInp, _previousInp);
 }
 
 export function addPerformanceInstrumentationHandler(
@@ -488,5 +512,18 @@ function instrumentTtfb(): StopListening {
     // 将当前的 TTFB 指标值存储，以便后续使用和比较
     // 这有助于保持对 TTFB 值的历史记录，以便在需要时进行分析
     _previousTtfb = metric;
+  });
+}
+
+/**
+ * 负责启动 INP 计算的核心函数
+ * @returns
+ */
+function instrumentInp(): void {
+  return onINP((metric) => {
+    triggerHandlers('inp', {
+      metric,
+    });
+    _previousInp = metric;
   });
 }

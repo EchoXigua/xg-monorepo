@@ -20,6 +20,12 @@ declare global {
     durationThreshold?: number;
   }
 
+  // https://wicg.github.io/event-timing/#sec-performance-event-timing
+  interface PerformanceEventTiming extends PerformanceEntry {
+    duration: DOMHighResTimeStamp;
+    interactionId?: number;
+  }
+
   interface LayoutShiftAttribution {
     node?: Node;
     previousRect: DOMRectReadOnly;
