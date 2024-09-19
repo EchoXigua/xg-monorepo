@@ -111,6 +111,8 @@ export function startTrackingWebVitals({
   return () => undefined;
 }
 
+export { startTrackingINP, registerInpInteractionListener } from './inp';
+
 interface AddPerformanceEntriesOptions {
   /**
    * Flag to determine if CLS should be recorded as a measurement on the span or
