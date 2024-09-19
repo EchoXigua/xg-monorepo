@@ -76,6 +76,129 @@ export function startAndEndSpan(
   });
 }
 
+interface StandaloneWebVitalSpanOptions {
+  name: string;
+  transaction?: string;
+  attributes: SpanAttributes;
+  startTime: number;
+}
+
+/**
+ * 这个函数用于创建一个独立的 Web Vital 监控 span，其中包含性能相关的详细信息
+ * （如用户、回放 ID、环境信息等），并将其与用户行为、页面上下文等进行关联。
+ *
+ * 这里解释了为什么要创建独立的、非活跃的 span ,主要用于将 Web Vital 数据发送到 Sentry，但不应该被用于一般的 span
+ *
+ * 1. 独立的 Web Vital span：
+ *  - 这个 span 是独立的，并且是非活跃的，主要用于收集和发送 Web Vital
+ *  （网页关键性能指标，如 LCP、CLS 等）到 Sentry 进行分析
+ *  - 它不同于普通的 span，这类 span 需要经过特殊的处理来从中提取性能度量数据
+ *
+ * 2. 限制和注意事项：
+ *  - 不能随意将这个函数用于其他任意的 span，因为这些 span 会在
+ *  Sentry 服务器的摄取过程中有不同的处理方式，主要为了提取 Web Vital 性能数据
+ *  - 开发者在使用时必须特别注意，只有在与 Web Vital 性能指标相关的场景中才能调用此函数
+ *
+ * 3. 共享的属性和数据：
+ *  - 该函数会为所有 Web Vital span 添加一系列共享属性和数据，
+ *  比如一些与用户、设备、环境相关的元数据，但开发者仍需自行添加与具体 Web Vital 指标相关的值
+ *  - 例如，开发者需要手动添加 Web Vital 的具体值（例如 LCP 的加载时间、CLS 的累计偏移量）作为事件，附加到该 span 上
+ *
+ * 4. 具体的事务名和其他值：
+ *  - 每个 Web Vital span 都需要分配一个事务名，用来标识当前的用户交互或页面加载任务
+ *  其他一些值，如度量单位、具体的性能值等，也需由开发者设置
+ *
+ * 5. 手动结束 span：
+ *  - 该 span 并不会自动结束，因此开发者需要手动调用结束操作 (end())
+ *  来确保将这个 span 发送到 Sentry 进行数据收集和分析
+ *
+ * @param options
+ *
+ * @returns 返回一个未激活、独立的、尚未结束的 span,需要手动结束这个span,以便它能被正确地发送和处理
+ * 调用结束方法 (span.end()) 才能让它完成，并且发送到 Sentry 进行分析。
+ */
+export function startStandaloneWebVitalSpan(
+  options: StandaloneWebVitalSpanOptions,
+): Span | undefined {
+  // 获取 SDK 客户端实例
+  const client = getClient();
+  if (!client) {
+    return;
+  }
+
+  // 从传入的 options 中提取信息
+  const {
+    name, // 监控的名称
+    transaction, // 事务名称
+    attributes: passedAttributes, // 属性
+    startTime, // 起始时间
+  } = options;
+
+  // 获取客户端的 发布版本 和 环境信息
+  const { release, environment } = client.getOptions();
+
+  // 尝试从客户端获取 replay 集成,如果存在，则调用 getReplayId() 获取当前会话的 Replay ID
+  // Replay 是用于记录用户会话的工具，可以帮助调试时回溯用户操作
+  // Replay ID：关联用户会话的回放，用于调试或还原用户行为场景
+  const replay = client.getIntegrationByName<
+    Integration & { getReplayId: () => string }
+  >('Replay');
+  const replayId = replay && replay.getReplayId();
+
+  // 获取当前作用域
+  const scope = getCurrentScope();
+
+  // 拿到用户信息
+  const user = scope.getUser();
+  // 提取用户信息用于展示
+  const userDisplay =
+    user !== undefined ? user.email || user.id || user.ip_address : undefined;
+
+  // 用于识别和关联用户的性能数据或其他分析数据
+  let profileId: string | undefined = undefined;
+  try {
+    // @ts-expect-error skip optional chaining to save bundle size with try catch
+    // 尝试从当前作用域上下文中获取 profile_id，它可能用于关联某个用户的性能监控数据
+    profileId = scope.getScopeData().contexts.profile.profile_id;
+  } catch {
+    // do nothing
+  }
+
+  // 构建属性对象
+  const attributes: SpanAttributes = {
+    release,
+    environment,
+
+    user: userDisplay || undefined,
+    profile_id: profileId || undefined,
+    replay_id: replayId || undefined,
+
+    transaction,
+
+    /**
+     * 保存用户的 User-Agent 字符串，主要用于 Web Vital 分数的计算
+     * 不同浏览器（如桌面版 Chrome 和移动版 Chrome）对性能的判断标准可能不同
+     *
+     * User-Agent 保存了当前用户的浏览器信息，
+     * 用于区分不同的浏览器、设备，并根据这些差异动态调整对性能分数的评估。
+     */
+    'user_agent.original': WINDOW.navigator && WINDOW.navigator.userAgent,
+
+    ...passedAttributes,
+  };
+
+  // 创建一个新的、独立的 span
+  return startInactiveSpan({
+    name,
+    attributes,
+    startTime,
+    experimental: {
+      // 表示该 span 是独立的，可能会用于实验性或额外的功能
+      standalone: true,
+    },
+  });
+}
+
 /** 用于获取浏览器的 Performance API */
 export function getBrowserPerformanceAPI(): Performance | undefined {
   // @ts-expect-error we want to make sure all of these are available, even if TS is sure they are

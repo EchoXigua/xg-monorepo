@@ -37,6 +37,25 @@ type InstrumentHandlerTypePerformanceObserver =
  */
 type InstrumentHandlerTypeMetric = 'cls' | 'lcp' | 'fid' | 'ttfb' | 'inp';
 
+// We provide this here manually instead of relying on a global, as this is not available in non-browser environements
+// And we do not want to expose such types
+interface PerformanceEntry {
+  readonly duration: number;
+  readonly entryType: string;
+  readonly name: string;
+  readonly startTime: number;
+  toJSON(): Record<string, unknown>;
+}
+
+interface PerformanceEventTiming extends PerformanceEntry {
+  processingStart: number;
+  processingEnd: number;
+  duration: number;
+  cancelable?: boolean;
+  target?: unknown | null;
+  interactionId?: number;
+}
+
 interface PerformanceScriptTiming extends PerformanceEntry {
   sourceURL: string;
   sourceFunctionName: string;
@@ -258,20 +277,6 @@ export function addInpInstrumentationHandler(
   return addMetricObserver('inp', callback, instrumentInp, _previousInp);
 }
 
-export function addPerformanceInstrumentationHandler(
-  type: 'event',
-  callback: (data: {
-    entries: (
-      | (PerformanceEntry & { target?: unknown | null })
-      | PerformanceEventTiming
-    )[];
-  }) => void,
-): CleanupHandlerCallback;
-export function addPerformanceInstrumentationHandler(
-  type: InstrumentHandlerTypePerformanceObserver,
-  callback: (data: { entries: PerformanceEntry[] }) => void,
-): CleanupHandlerCallback;
-
 /**
  * 添加一个回调函数，当性能观察器触发时回调会被执行，并且接收到性能条目（PerformanceEntry）数组
  * 返回一个清理函数，用于移除对应的性能监听
@@ -285,6 +290,19 @@ export function addPerformanceInstrumentationHandler(
  * 例如在 event 类型监控中，它可以追踪页面上的用户交互事件（点击、输入等）的性能表现，
  * 并在事件持续时间超过某个阈值时进行告警或优化建议。
  */
+export function addPerformanceInstrumentationHandler(
+  type: 'event',
+  callback: (data: {
+    entries: (
+      | (PerformanceEntry & { target?: unknown | null })
+      | PerformanceEventTiming
+    )[];
+  }) => void,
+): CleanupHandlerCallback;
+export function addPerformanceInstrumentationHandler(
+  type: InstrumentHandlerTypePerformanceObserver,
+  callback: (data: { entries: PerformanceEntry[] }) => void,
+): CleanupHandlerCallback;
 export function addPerformanceInstrumentationHandler(
   type: InstrumentHandlerTypePerformanceObserver,
   callback: (data: { entries: PerformanceEntry[] }) => void,
@@ -526,4 +544,13 @@ function instrumentInp(): void {
     });
     _previousInp = metric;
   });
+}
+
+/**
+ * 通过检查' duration '属性来检查PerformanceEntry是否是PerformanceEventTiming
+ */
+export function isPerformanceEventTiming(
+  entry: PerformanceEntry,
+): entry is PerformanceEventTiming {
+  return 'duration' in entry;
 }
