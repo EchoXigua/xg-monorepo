@@ -279,12 +279,23 @@ interface AddPerformanceEntriesOptions {
   recordClsOnPageloadSpan: boolean;
 }
 
-/** Add performance related spans to a transaction */
+/**
+ * 在事务中添加性能相关的跨度
+ *
+ * 通过浏览器的 Performance API 获取性能指标，
+ * 并将相关的性能信息转化为 Sentry 的性能跟踪 span，从而为性能监控提供数据支持
+ *
+ * @param span 当前的性能跟踪 span，这是一个表示事务或操作的对象
+ * @param options :包含一些控制是否记录某些性能指标的配置
+ * @returns
+ */
 export function addPerformanceEntries(
   span: Span,
   options: AddPerformanceEntriesOptions,
 ): void {
+  // 获取性能 api
   const performance = getBrowserPerformanceAPI();
+  // 如果不支持 性能 api 直接返回
   if (
     !performance ||
     !WINDOW.performance.getEntries ||
@@ -296,25 +307,48 @@ export function addPerformanceEntries(
 
   DEBUG_BUILD &&
     logger.log('[Tracing] Adding & adjusting spans using Performance API');
+
+  // 获取性能时间原点，将其转为秒
   const timeOrigin = msToSec(browserPerformanceTimeOrigin);
 
+  // 获取浏览器的所有性能条目
   const performanceEntries = performance.getEntries();
 
+  // 将 span JSON化，提取 操作类型 和 开始时间
   const { op, start_timestamp: transactionStartTime } = spanToJSON(span);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // 根据每个条目的类型（navigation、mark、paint、measure、resource 等）
+  // 处理相应的性能数据，并生成相应的 Sentry 性能跟踪 span。
   performanceEntries
+    // 只获取那些还没有被处理的性能条目
+    // _performanceCursor 是一个指针，用于标记已经处理过的性能条目的位置，避免重复处理。
     .slice(_performanceCursor)
+    // 遍历获取的性能条目
     .forEach((entry: Record<string, any>) => {
+      // 获取每个性能条目的开始时间，将其转为秒
       const startTime = msToSec(entry.startTime);
+      // 计算持续时间，如果持续时间为负值，这里为修正为 0
+      // Chrome 有时会产生负持续时间，这是一个已知问题，为了避免因此丢失事务数据，做了这样的处理。
       const duration = msToSec(
-        // Inexplicably, Chrome sometimes emits a negative duration. We need to work around this.
-        // There is a SO post attempting to explain this, but it leaves one with open questions: https://stackoverflow.com/questions/23191918/peformance-getentries-and-negative-duration-display
-        // The way we clamp the value is probably not accurate, since we have observed this happen for things that may take a while to load, like for example the replay worker.
-        // TODO: Investigate why this happens and how to properly mitigate. For now, this is a workaround to prevent transactions being dropped due to negative duration spans.
+        /**
+         * 在某些情况下，Chrome 浏览器 的 Performance API 可能会返回负数的持续时间（duration），
+         * 不清楚具体原因是什么，但这种情况确实偶尔会发生。
+         * 在 StackOverflow 中有一篇帖子讨论了这个问题
+         * https://stackoverflow.com/questions/23191918/peformance-getentries-and-negative-duration-display
+         *
+         * 为了避免负持续时间导致的一些问题（例如 Sentry 事务被丢弃），开发者在这段代码中对 duration 进行了修正处理（即将负值修正为 0）
+         * 这种处理方法不是最准确的解决方案，但可以暂时解决由于负持续时间而导致事务丢失的问题。
+         * 某些需要较长时间加载的内容（例如 Replay Worker）会有负持续时间
+         *
+         * sentry 开发团队将来需要进一步调查为何 Chrome 会返回负的持续时间，以及寻找更恰当的方式来处理这些负值。
+         * 目前的方案只是一种防止事务因负持续时间而被丢弃的解决方案。
+         */
         Math.max(0, entry.duration),
       );
 
+      // 如果当前事务类型是 navigation 且事务的 startTime 大于当前性能条目的开始时间，则跳过该条目
+      // 这意味着如果条目的时间早于导航事务的开始时间，它不应该被记录为该事务的部分
       if (
         op === 'navigation' &&
         transactionStartTime &&
@@ -323,14 +357,21 @@ export function addPerformanceEntries(
         return;
       }
 
+      // 根据性能条目的类型进行不同的处理
       switch (entry.entryType) {
         case 'navigation': {
+          // 页面加载或导航的性能条目
+
+          // 创建相应导航 span
           _addNavigationSpans(span, entry, timeOrigin);
           break;
         }
         case 'mark':
         case 'paint':
         case 'measure': {
+          // 页面的标记、绘制或测量点
+
+          // 创建相应的 span，同时会记录一些关键的 Web Vitals 数据（如 FP、FCP 等）
           _addMeasureSpans(span, entry, startTime, duration, timeOrigin);
 
           // capture web vitals
@@ -355,6 +396,9 @@ export function addPerformanceEntries(
           break;
         }
         case 'resource': {
+          // 资源加载的条目
+
+          // 创建与资源加载相关的 span
           _addResourceSpans(
             span,
             entry,
@@ -366,6 +410,7 @@ export function addPerformanceEntries(
           break;
         }
         default:
+        // 忽略其他不需要处理的条目类型
         // Ignore other entry types.
       }
     });
@@ -558,6 +603,42 @@ function _addPerformanceNavigationTiming(
       },
     },
   );
+}
+
+/** Create request and response related spans */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function _addRequest(
+  span: Span,
+  entry: Record<string, any>,
+  timeOrigin: number,
+): void {
+  const requestStartTimestamp =
+    timeOrigin + msToSec(entry.requestStart as number);
+  const responseEndTimestamp =
+    timeOrigin + msToSec(entry.responseEnd as number);
+  const responseStartTimestamp =
+    timeOrigin + msToSec(entry.responseStart as number);
+  if (entry.responseEnd) {
+    // It is possible that we are collecting these metrics when the page hasn't finished loading yet, for example when the HTML slowly streams in.
+    // In this case, ie. when the document request hasn't finished yet, `entry.responseEnd` will be 0.
+    // In order not to produce faulty spans, where the end timestamp is before the start timestamp, we will only collect
+    // these spans when the responseEnd value is available. The backend (Relay) would drop the entire span if it contained faulty spans.
+    startAndEndSpan(span, requestStartTimestamp, responseEndTimestamp, {
+      op: 'browser',
+      name: 'request',
+      attributes: {
+        [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+      },
+    });
+
+    startAndEndSpan(span, responseStartTimestamp, responseEndTimestamp, {
+      op: 'browser',
+      name: 'response',
+      attributes: {
+        [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+      },
+    });
+  }
 }
 
 /** Create resource-related spans */
