@@ -532,22 +532,33 @@ export function _addMeasureSpans(
   return measureStartTimestamp;
 }
 
-/** Instrument navigation entries */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/**
+ * 通过 Performance API 对导航性能事件进行监控，
+ * 并为这些事件创建 span（追踪片段），以帮助分析页面导航的性能表现
+ *
+ * @param span 表示当前追踪事务的根 span
+ * @param entry Performance API 返回的导航条目对象
+ * @param timeOrigin 时间原点，用来将时间对齐为绝对时间
+ */
 function _addNavigationSpans(
   span: Span,
   entry: Record<string, any>,
   timeOrigin: number,
 ): void {
   [
-    'unloadEvent',
-    'redirect',
-    'domContentLoadedEvent',
-    'loadEvent',
-    'connect',
+    'unloadEvent', // 前一个页面的 unload 事件时间
+    'redirect', // 重定向时间（如果有重定向）
+    'domContentLoadedEvent', // DOM 完全加载并解析的时间
+    'loadEvent', // 页面完全加载（包括所有资源）的时间
+    'connect', // 浏览器与服务器建立连接的时间
   ].forEach((event) => {
     _addPerformanceNavigationTiming(span, entry, event, timeOrigin);
   });
+
+  // 特殊的性能事件处理
+
+  // TLS/SSL (握手)安全连接，明确了 secureConnection 事件，并将其类型设为 'TLS/SSL'，
+  // 连接结束的时间点为 connectEnd
   _addPerformanceNavigationTiming(
     span,
     entry,
@@ -556,6 +567,9 @@ function _addNavigationSpans(
     'TLS/SSL',
     'connectEnd',
   );
+
+  // 处理从缓存或其他源获取资源的时间，资源获取被称为 fetch，
+  // 其时间区间为从缓存获取开始到域名查找开始（domainLookupStart）
   _addPerformanceNavigationTiming(
     span,
     entry,
@@ -564,6 +578,8 @@ function _addNavigationSpans(
     'cache',
     'domainLookupStart',
   );
+
+  // DNS 解析阶段，类型设为 'DNS'，用于测量域名解析所花费的时间
   _addPerformanceNavigationTiming(
     span,
     entry,
@@ -571,10 +587,24 @@ function _addNavigationSpans(
     timeOrigin,
     'DNS',
   );
+
+  // 记录整个请求的性能，包括请求发出、服务器响应等
+  // 这部分对于导航性能的关键是了解页面加载涉及的网络请求及其耗时
   _addRequest(span, entry, timeOrigin);
 }
 
-/** Create performance navigation related spans */
+/**
+ * 这个函数的作用是根据传入的 Performance API 导航条目，为页面导航的相关性能事件创建 span（追踪片段）
+ * 会记录事件的开始和结束时间，并将这些时间差生成 span，以帮助监控和分析性能
+ *
+ * @param span 根 span，用于关联这些事件的追踪片段
+ * @param entry Performance API 导航条目，包含性能数据
+ * @param event 导航事件名称，例如 'unloadEvent', 'redirect' 等
+ * @param timeOrigin 时间原点，用于将时间对齐为绝对时间
+ * @param name 事件的自定义名称，默认为 event 名称
+ * @param eventEnd 结束时间的自定义字段名，默认为 eventEnd
+ * @returns
+ */
 function _addPerformanceNavigationTiming(
   span: Span,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -584,21 +614,27 @@ function _addPerformanceNavigationTiming(
   name?: string,
   eventEnd?: string,
 ): void {
+  // 获取指定事件的开始时间（start）和结束时间（end）
   const end = eventEnd
     ? (entry[eventEnd] as number | undefined)
     : (entry[`${event}End`] as number | undefined);
   const start = entry[`${event}Start`] as number | undefined;
+
+  // 如果有一个时间不存在，直接返回
   if (!start || !end) {
     return;
   }
+
+  // 创建 子span
   startAndEndSpan(
     span,
-    timeOrigin + msToSec(start),
-    timeOrigin + msToSec(end),
+    timeOrigin + msToSec(start), // 计算绝对的开始时间
+    timeOrigin + msToSec(end), // 计算绝对的结束时间
     {
-      op: 'browser',
-      name: name || event,
+      op: 'browser', // 操作类型为 'browser'
+      name: name || event, // 使用自定义名称或事件名称
       attributes: {
+        // 附加属性，标明是浏览器性能事件
         [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
       },
     },

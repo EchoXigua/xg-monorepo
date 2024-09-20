@@ -1,6 +1,7 @@
 import { createApp } from 'vue';
 import App from './App.vue';
-import * as Sentry from '@sentry/vue';
+// import * as Sentry from '@sentry/vue';
+import * as Sentry from '@xigua-monitor/vue';
 import router from './router';
 
 const app = createApp(App);
@@ -11,7 +12,7 @@ Sentry.init({
   dsn: 'http://f70471da81fe3b1c5625e364f3aee1ef@localhost:9000/4',
   integrations: [
     Sentry.browserTracingIntegration({ router }),
-    Sentry.replayIntegration(),
+    // Sentry.replayIntegration(),
   ],
   // Tracing
   tracesSampleRate: 1.0, //  Capture 100% of the transactions
