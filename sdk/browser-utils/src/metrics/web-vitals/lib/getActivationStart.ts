@@ -14,21 +14,15 @@
  * limitations under the License.
  */
 
-import { WINDOW } from '../../../types';
-import type { NavigationTimingPolyfillEntry } from '../types';
+import { getNavigationEntry } from './getNavigationEntry';
 
 /**
- * 从浏览器的性能 API 中获取页面的导航条目，提供有关页面加载过程的相关性能数据
+ * 获取页面激活（activation）的开始时间，特别是针对预渲染的页面
+ * 如果页面是通过预渲染加载的，那么 activationStart 表示页面从预渲染状态变为可交互状态的时间
  *
  * @returns
  */
-export const getNavigationEntry = ():
-  | PerformanceNavigationTiming
-  | NavigationTimingPolyfillEntry
-  | undefined => {
-  return (
-    WINDOW.performance &&
-    performance.getEntriesByType &&
-    performance.getEntriesByType('navigation')[0]
-  );
+export const getActivationStart = (): number => {
+  const navEntry = getNavigationEntry();
+  return (navEntry && navEntry.activationStart) || 0;
 };

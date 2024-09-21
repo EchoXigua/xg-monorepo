@@ -111,6 +111,166 @@ export function startTrackingWebVitals({
   return () => undefined;
 }
 
+/**
+ * 监控浏览器主线程上的长任务，帮助开发者识别可能导致 UI 卡顿的代码
+ * 通过跟踪长任务，开发者可以更好地理解应用程序性能，并作出相应的优化
+ */
+export function startTrackingLongTasks(): void {
+  // 监听 longtask 类型的性能事件
+  addPerformanceInstrumentationHandler('longtask', ({ entries }) => {
+    // 确保存在活跃的 span
+    if (!getActiveSpan()) {
+      return;
+    }
+
+    for (const entry of entries) {
+      // 计算时间
+      const startTime = msToSec(
+        (browserPerformanceTimeOrigin as number) + entry.startTime,
+      );
+      const duration = msToSec(entry.duration);
+
+      // 创建一个不活跃的 span
+      const span = startInactiveSpan({
+        name: 'Main UI thread blocked',
+        op: 'ui.long-task',
+        startTime,
+        attributes: {
+          [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+        },
+      });
+      if (span) {
+        // 如果成功创建了就结束它
+        span.end(startTime + duration);
+      }
+    }
+  });
+}
+
+/**
+ * 监控浏览器主线程上的长动画帧，帮助开发者识别可能导致动画卡顿的代码
+ */
+export function startTrackingLongAnimationFrames(): void {
+  /**
+   * 当前使用的 web-vitals 版本不支持 long-animation-frame，因此直接观察 long-animation-frame 事件
+   */
+  const observer = new PerformanceObserver((list) => {
+    // 确保存在活跃的 span
+    if (!getActiveSpan()) {
+      return;
+    }
+
+    for (const entry of list.getEntries() as PerformanceLongAnimationFrameTiming[]) {
+      // 如果没有脚本信息，则跳过该条目。entry.scripts 数组的第一个元素用于获取动画帧的执行上下文
+      if (!entry.scripts[0]) {
+        continue;
+      }
+
+      // 计算时间
+      const startTime = msToSec(
+        (browserPerformanceTimeOrigin as number) + entry.startTime,
+      );
+      const duration = msToSec(entry.duration);
+
+      // 构建属性
+      const attributes: SpanAttributes = {
+        [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+      };
+
+      // 获取脚本信息
+      const initialScript = entry.scripts[0];
+      // 从脚本信息提取信息
+      const {
+        invoker, // 调用者的名称
+        invokerType, // 调用者的类型
+        sourceURL, //  脚本的源 URL
+        sourceFunctionName, // 源函数的名称
+        sourceCharPosition, // 源代码中的字符位置
+      } = initialScript;
+
+      // 将提取到的信息添加到 attributes 对象中
+      attributes['browser.script.invoker'] = invoker;
+      attributes['browser.script.invoker_type'] = invokerType;
+      if (sourceURL) {
+        attributes['code.filepath'] = sourceURL;
+      }
+      if (sourceFunctionName) {
+        attributes['code.function'] = sourceFunctionName;
+      }
+      if (sourceCharPosition !== -1) {
+        attributes['browser.script.source_char_position'] = sourceCharPosition;
+      }
+
+      // 创建一个不活跃的 span
+      const span = startInactiveSpan({
+        name: 'Main UI thread blocked',
+        op: 'ui.long-animation-frame',
+        startTime,
+        attributes,
+      });
+      if (span) {
+        // 成功创建后结束它 记录动画帧的完成时间
+        span.end(startTime + duration);
+      }
+    }
+  });
+
+  // 开始观察  long-animation-frame 类型的事件
+  // buffered: true 以便接收缓冲的条目
+  observer.observe({ type: 'long-animation-frame', buffered: true });
+}
+
+/**
+ * 用于跟踪用户交互事件，特别是点击事件
+ */
+export function startTrackingInteractions(): void {
+  // 监听 event 类型的性能条目
+  addPerformanceInstrumentationHandler('event', ({ entries }) => {
+    // 确保有活跃的 Span
+    if (!getActiveSpan()) {
+      return;
+    }
+
+    for (const entry of entries) {
+      // 处理点击事件
+      if (entry.name === 'click') {
+        // 计算时间
+        const startTime = msToSec(
+          (browserPerformanceTimeOrigin as number) + entry.startTime,
+        );
+        const duration = msToSec(entry.duration);
+
+        // 创建一个 span 配置对象
+        const spanOptions: StartSpanOptions &
+          Required<Pick<StartSpanOptions, 'attributes'>> = {
+          name: htmlTreeAsString(entry.target),
+          op: `ui.interaction.${entry.name}`,
+          startTime: startTime,
+          attributes: {
+            [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+          },
+        };
+
+        // 数获取事件目标的组件名称
+        const componentName = getComponentName(entry.target);
+        if (componentName) {
+          // 如果存在，将其添加到属性中
+          spanOptions.attributes['ui.component_name'] = componentName;
+        }
+
+        // 创建一个 不活跃的 span，传入配置对象
+        const span = startInactiveSpan(spanOptions);
+        if (span) {
+          // 如果成功创建 Span，则调用 span.end 方法结束该 Span
+          span.end(startTime + duration);
+        }
+      }
+    }
+  });
+}
+
+export { startTrackingINP, registerInpInteractionListener } from './inp';
+
 interface AddPerformanceEntriesOptions {
   /**
    * Flag to determine if CLS should be recorded as a measurement on the span or
@@ -119,12 +279,23 @@ interface AddPerformanceEntriesOptions {
   recordClsOnPageloadSpan: boolean;
 }
 
-/** Add performance related spans to a transaction */
+/**
+ * 在事务中添加性能相关的跨度
+ *
+ * 通过浏览器的 Performance API 获取性能指标，
+ * 并将相关的性能信息转化为 Sentry 的性能跟踪 span，从而为性能监控提供数据支持
+ *
+ * @param span 当前的性能跟踪 span，这是一个表示事务或操作的对象
+ * @param options :包含一些控制是否记录某些性能指标的配置
+ * @returns
+ */
 export function addPerformanceEntries(
   span: Span,
   options: AddPerformanceEntriesOptions,
 ): void {
+  // 获取性能 api
   const performance = getBrowserPerformanceAPI();
+  // 如果不支持 性能 api 直接返回
   if (
     !performance ||
     !WINDOW.performance.getEntries ||
@@ -136,25 +307,48 @@ export function addPerformanceEntries(
 
   DEBUG_BUILD &&
     logger.log('[Tracing] Adding & adjusting spans using Performance API');
+
+  // 获取性能时间原点，将其转为秒
   const timeOrigin = msToSec(browserPerformanceTimeOrigin);
 
+  // 获取浏览器的所有性能条目
   const performanceEntries = performance.getEntries();
 
+  // 将 span JSON化，提取 操作类型 和 开始时间
   const { op, start_timestamp: transactionStartTime } = spanToJSON(span);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // 根据每个条目的类型（navigation、mark、paint、measure、resource 等）
+  // 处理相应的性能数据，并生成相应的 Sentry 性能跟踪 span。
   performanceEntries
+    // 只获取那些还没有被处理的性能条目
+    // _performanceCursor 是一个指针，用于标记已经处理过的性能条目的位置，避免重复处理。
     .slice(_performanceCursor)
+    // 遍历获取的性能条目
     .forEach((entry: Record<string, any>) => {
+      // 获取每个性能条目的开始时间，将其转为秒
       const startTime = msToSec(entry.startTime);
+      // 计算持续时间，如果持续时间为负值，这里为修正为 0
+      // Chrome 有时会产生负持续时间，这是一个已知问题，为了避免因此丢失事务数据，做了这样的处理。
       const duration = msToSec(
-        // Inexplicably, Chrome sometimes emits a negative duration. We need to work around this.
-        // There is a SO post attempting to explain this, but it leaves one with open questions: https://stackoverflow.com/questions/23191918/peformance-getentries-and-negative-duration-display
-        // The way we clamp the value is probably not accurate, since we have observed this happen for things that may take a while to load, like for example the replay worker.
-        // TODO: Investigate why this happens and how to properly mitigate. For now, this is a workaround to prevent transactions being dropped due to negative duration spans.
+        /**
+         * 在某些情况下，Chrome 浏览器 的 Performance API 可能会返回负数的持续时间（duration），
+         * 不清楚具体原因是什么，但这种情况确实偶尔会发生。
+         * 在 StackOverflow 中有一篇帖子讨论了这个问题
+         * https://stackoverflow.com/questions/23191918/peformance-getentries-and-negative-duration-display
+         *
+         * 为了避免负持续时间导致的一些问题（例如 Sentry 事务被丢弃），开发者在这段代码中对 duration 进行了修正处理（即将负值修正为 0）
+         * 这种处理方法不是最准确的解决方案，但可以暂时解决由于负持续时间而导致事务丢失的问题。
+         * 某些需要较长时间加载的内容（例如 Replay Worker）会有负持续时间
+         *
+         * sentry 开发团队将来需要进一步调查为何 Chrome 会返回负的持续时间，以及寻找更恰当的方式来处理这些负值。
+         * 目前的方案只是一种防止事务因负持续时间而被丢弃的解决方案。
+         */
         Math.max(0, entry.duration),
       );
 
+      // 如果当前事务类型是 navigation 且事务的 startTime 大于当前性能条目的开始时间，则跳过该条目
+      // 这意味着如果条目的时间早于导航事务的开始时间，它不应该被记录为该事务的部分
       if (
         op === 'navigation' &&
         transactionStartTime &&
@@ -163,14 +357,21 @@ export function addPerformanceEntries(
         return;
       }
 
+      // 根据性能条目的类型进行不同的处理
       switch (entry.entryType) {
         case 'navigation': {
+          // 页面加载或导航的性能条目
+
+          // 创建相应导航 span
           _addNavigationSpans(span, entry, timeOrigin);
           break;
         }
         case 'mark':
         case 'paint':
         case 'measure': {
+          // 页面的标记、绘制或测量点
+
+          // 创建相应的 span，同时会记录一些关键的 Web Vitals 数据（如 FP、FCP 等）
           _addMeasureSpans(span, entry, startTime, duration, timeOrigin);
 
           // capture web vitals
@@ -195,6 +396,9 @@ export function addPerformanceEntries(
           break;
         }
         case 'resource': {
+          // 资源加载的条目
+
+          // 创建与资源加载相关的 span
           _addResourceSpans(
             span,
             entry,
@@ -206,6 +410,7 @@ export function addPerformanceEntries(
           break;
         }
         default:
+        // 忽略其他不需要处理的条目类型
         // Ignore other entry types.
       }
     });
@@ -327,22 +532,33 @@ export function _addMeasureSpans(
   return measureStartTimestamp;
 }
 
-/** Instrument navigation entries */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/**
+ * 通过 Performance API 对导航性能事件进行监控，
+ * 并为这些事件创建 span（追踪片段），以帮助分析页面导航的性能表现
+ *
+ * @param span 表示当前追踪事务的根 span
+ * @param entry Performance API 返回的导航条目对象
+ * @param timeOrigin 时间原点，用来将时间对齐为绝对时间
+ */
 function _addNavigationSpans(
   span: Span,
   entry: Record<string, any>,
   timeOrigin: number,
 ): void {
   [
-    'unloadEvent',
-    'redirect',
-    'domContentLoadedEvent',
-    'loadEvent',
-    'connect',
+    'unloadEvent', // 前一个页面的 unload 事件时间
+    'redirect', // 重定向时间（如果有重定向）
+    'domContentLoadedEvent', // DOM 完全加载并解析的时间
+    'loadEvent', // 页面完全加载（包括所有资源）的时间
+    'connect', // 浏览器与服务器建立连接的时间
   ].forEach((event) => {
     _addPerformanceNavigationTiming(span, entry, event, timeOrigin);
   });
+
+  // 特殊的性能事件处理
+
+  // TLS/SSL (握手)安全连接，明确了 secureConnection 事件，并将其类型设为 'TLS/SSL'，
+  // 连接结束的时间点为 connectEnd
   _addPerformanceNavigationTiming(
     span,
     entry,
@@ -351,6 +567,9 @@ function _addNavigationSpans(
     'TLS/SSL',
     'connectEnd',
   );
+
+  // 处理从缓存或其他源获取资源的时间，资源获取被称为 fetch，
+  // 其时间区间为从缓存获取开始到域名查找开始（domainLookupStart）
   _addPerformanceNavigationTiming(
     span,
     entry,
@@ -359,6 +578,8 @@ function _addNavigationSpans(
     'cache',
     'domainLookupStart',
   );
+
+  // DNS 解析阶段，类型设为 'DNS'，用于测量域名解析所花费的时间
   _addPerformanceNavigationTiming(
     span,
     entry,
@@ -366,10 +587,24 @@ function _addNavigationSpans(
     timeOrigin,
     'DNS',
   );
+
+  // 记录整个请求的性能，包括请求发出、服务器响应等
+  // 这部分对于导航性能的关键是了解页面加载涉及的网络请求及其耗时
   _addRequest(span, entry, timeOrigin);
 }
 
-/** Create performance navigation related spans */
+/**
+ * 这个函数的作用是根据传入的 Performance API 导航条目，为页面导航的相关性能事件创建 span（追踪片段）
+ * 会记录事件的开始和结束时间，并将这些时间差生成 span，以帮助监控和分析性能
+ *
+ * @param span 根 span，用于关联这些事件的追踪片段
+ * @param entry Performance API 导航条目，包含性能数据
+ * @param event 导航事件名称，例如 'unloadEvent', 'redirect' 等
+ * @param timeOrigin 时间原点，用于将时间对齐为绝对时间
+ * @param name 事件的自定义名称，默认为 event 名称
+ * @param eventEnd 结束时间的自定义字段名，默认为 eventEnd
+ * @returns
+ */
 function _addPerformanceNavigationTiming(
   span: Span,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -379,25 +614,67 @@ function _addPerformanceNavigationTiming(
   name?: string,
   eventEnd?: string,
 ): void {
+  // 获取指定事件的开始时间（start）和结束时间（end）
   const end = eventEnd
     ? (entry[eventEnd] as number | undefined)
     : (entry[`${event}End`] as number | undefined);
   const start = entry[`${event}Start`] as number | undefined;
+
+  // 如果有一个时间不存在，直接返回
   if (!start || !end) {
     return;
   }
+
+  // 创建 子span
   startAndEndSpan(
     span,
-    timeOrigin + msToSec(start),
-    timeOrigin + msToSec(end),
+    timeOrigin + msToSec(start), // 计算绝对的开始时间
+    timeOrigin + msToSec(end), // 计算绝对的结束时间
     {
-      op: 'browser',
-      name: name || event,
+      op: 'browser', // 操作类型为 'browser'
+      name: name || event, // 使用自定义名称或事件名称
       attributes: {
+        // 附加属性，标明是浏览器性能事件
         [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
       },
     },
   );
+}
+
+/** Create request and response related spans */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function _addRequest(
+  span: Span,
+  entry: Record<string, any>,
+  timeOrigin: number,
+): void {
+  const requestStartTimestamp =
+    timeOrigin + msToSec(entry.requestStart as number);
+  const responseEndTimestamp =
+    timeOrigin + msToSec(entry.responseEnd as number);
+  const responseStartTimestamp =
+    timeOrigin + msToSec(entry.responseStart as number);
+  if (entry.responseEnd) {
+    // It is possible that we are collecting these metrics when the page hasn't finished loading yet, for example when the HTML slowly streams in.
+    // In this case, ie. when the document request hasn't finished yet, `entry.responseEnd` will be 0.
+    // In order not to produce faulty spans, where the end timestamp is before the start timestamp, we will only collect
+    // these spans when the responseEnd value is available. The backend (Relay) would drop the entire span if it contained faulty spans.
+    startAndEndSpan(span, requestStartTimestamp, responseEndTimestamp, {
+      op: 'browser',
+      name: 'request',
+      attributes: {
+        [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+      },
+    });
+
+    startAndEndSpan(span, responseStartTimestamp, responseEndTimestamp, {
+      op: 'browser',
+      name: 'response',
+      attributes: {
+        [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.ui.browser.metrics',
+      },
+    });
+  }
 }
 
 /** Create resource-related spans */

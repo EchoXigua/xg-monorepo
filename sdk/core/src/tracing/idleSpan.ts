@@ -21,6 +21,7 @@ import { SentryNonRecordingSpan } from './sentryNonRecordingSpan';
 import { SPAN_STATUS_ERROR } from './spanstatus';
 import { startInactiveSpan } from './trace';
 
+/** 追踪的默认配置 */
 export const TRACING_DEFAULTS = {
   /** 当追踪的 span 空闲事件超过设定时间时（以毫秒为单位），就会自动结束 */
   idleTimeout: 1_000,

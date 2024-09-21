@@ -3,6 +3,10 @@ import { getFunctionName, logger } from '@xigua-monitor/utils';
 import { DEBUG_BUILD } from '../debug-build';
 import { observe } from './web-vitals/lib/observe';
 import { onCLS } from './web-vitals/getCLS';
+import { onLCP } from './web-vitals/getLCP';
+import { onFID } from './web-vitals/getFID';
+import { onTTFB } from './web-vitals/onTTFB';
+import { onINP } from './web-vitals/getINP';
 
 /**
  * 定义了与浏览器性能相关的事件类型
@@ -32,6 +36,37 @@ type InstrumentHandlerTypePerformanceObserver =
  * inp (Interaction to Next Paint)：交互后的下次页面绘制时间。
  */
 type InstrumentHandlerTypeMetric = 'cls' | 'lcp' | 'fid' | 'ttfb' | 'inp';
+
+// We provide this here manually instead of relying on a global, as this is not available in non-browser environements
+// And we do not want to expose such types
+interface PerformanceEntry {
+  readonly duration: number;
+  readonly entryType: string;
+  readonly name: string;
+  readonly startTime: number;
+  toJSON(): Record<string, unknown>;
+}
+
+interface PerformanceEventTiming extends PerformanceEntry {
+  processingStart: number;
+  processingEnd: number;
+  duration: number;
+  cancelable?: boolean;
+  target?: unknown | null;
+  interactionId?: number;
+}
+
+interface PerformanceScriptTiming extends PerformanceEntry {
+  sourceURL: string;
+  sourceFunctionName: string;
+  sourceCharPosition: number;
+  invoker: string;
+  invokerType: string;
+}
+
+export interface PerformanceLongAnimationFrameTiming extends PerformanceEntry {
+  scripts: PerformanceScriptTiming[];
+}
 
 /**
  * 这个接口定义了 Web Vitals 指标的结构
@@ -190,19 +225,57 @@ export function addClsInstrumentationHandler(
   );
 }
 
-export function addPerformanceInstrumentationHandler(
-  type: 'event',
+/**
+ * 添加一个回调，当LCP度量可用时将触发该回调
+ * LCP 是衡量页面加载性能的重要指标，表示视口中最大的可见内容元素的渲染时间
+ * 返回一个清理回调，允许停止监听
+ *
+ * 如果参数 stopOnCallback 设置为 true，在清理回调被调用时，将停止对 LCP（Largest Contentful Paint） 指标的监听
+ * 会导致当前的 LCP 值被“最终确定”和“冻结”，也就是说之后不会再更新或改变该值
+ */
+export function addLcpInstrumentationHandler(
+  callback: (data: { metric: Metric }) => void,
+  stopOnCallback = false,
+): CleanupHandlerCallback {
+  return addMetricObserver(
+    'lcp',
+    callback,
+    instrumentLcp,
+    _previousLcp,
+    stopOnCallback,
+  );
+}
+
+/**
+ * 这个函数实现了 FID（First Input Delay） 指标的监控和回调机制
+ * 当 FID 数据可用时，注册的回调函数将被调用。同时，返回一个清理函数，允许用户在不需要时移除监听器
+ */
+export function addFidInstrumentationHandler(
+  callback: (data: { metric: Metric }) => void,
+): CleanupHandlerCallback {
+  return addMetricObserver('fid', callback, instrumentFid, _previousFid);
+}
+
+/**
+ * 添加一个回调，当 TTFB 指标可用时触发
+ */
+export function addTtfbInstrumentationHandler(
+  callback: (data: { metric: Metric }) => void,
+): CleanupHandlerCallback {
+  return addMetricObserver('ttfb', callback, instrumentTtfb, _previousTtfb);
+}
+
+/**
+ * 这个函数用于添加一个回调函数，当 INP 指标可用时，该回调函数会被触发
+ * 返回一个清理函数，当调用这个清理函数时，可以移除这个监听处理器。
+ */
+export function addInpInstrumentationHandler(
   callback: (data: {
-    entries: (
-      | (PerformanceEntry & { target?: unknown | null })
-      | PerformanceEventTiming
-    )[];
+    metric: Omit<Metric, 'entries'> & { entries: PerformanceEventTiming[] };
   }) => void,
-): CleanupHandlerCallback;
-export function addPerformanceInstrumentationHandler(
-  type: InstrumentHandlerTypePerformanceObserver,
-  callback: (data: { entries: PerformanceEntry[] }) => void,
-): CleanupHandlerCallback;
+): CleanupHandlerCallback {
+  return addMetricObserver('inp', callback, instrumentInp, _previousInp);
+}
 
 /**
  * 添加一个回调函数，当性能观察器触发时回调会被执行，并且接收到性能条目（PerformanceEntry）数组
@@ -217,6 +290,19 @@ export function addPerformanceInstrumentationHandler(
  * 例如在 event 类型监控中，它可以追踪页面上的用户交互事件（点击、输入等）的性能表现，
  * 并在事件持续时间超过某个阈值时进行告警或优化建议。
  */
+export function addPerformanceInstrumentationHandler(
+  type: 'event',
+  callback: (data: {
+    entries: (
+      | (PerformanceEntry & { target?: unknown | null })
+      | PerformanceEventTiming
+    )[];
+  }) => void,
+): CleanupHandlerCallback;
+export function addPerformanceInstrumentationHandler(
+  type: InstrumentHandlerTypePerformanceObserver,
+  callback: (data: { entries: PerformanceEntry[] }) => void,
+): CleanupHandlerCallback;
 export function addPerformanceInstrumentationHandler(
   type: InstrumentHandlerTypePerformanceObserver,
   callback: (data: { entries: PerformanceEntry[] }) => void,
@@ -396,4 +482,75 @@ function instrumentCls(): StopListening {
     // 这确保了每当页面布局发生变化导致 CLS 更新时，我们的回调都会及时执行，而不是延迟到页面不再活动。
     { reportAllChanges: true },
   );
+}
+
+/**
+ * 负责真正的 LCP 监控逻辑，使用 onLCP 来监听 LCP 数据的变化，
+ * 并在每次 LCP 值更新时触发回调，传递最新的 metric 数据
+ * @returns
+ */
+function instrumentLcp(): StopListening {
+  return onLCP(
+    (metric) => {
+      triggerHandlers('lcp', {
+        metric,
+      });
+      _previousLcp = metric;
+    },
+    // 我们希望每次 LCP 值更新时都调用回调函数。默认情况下，回调只在选项卡进入后台时调用
+    { reportAllChanges: true },
+  );
+}
+
+/**
+ * 负责真正的 FID 监控逻辑，使用 onFID 进行指标监听，
+ * 并在指标产生时，调用回调函数 triggerHandlers 触发相关事件
+ *
+ * @returns
+ */
+function instrumentFid(): void {
+  return onFID((metric) => {
+    triggerHandlers('fid', {
+      metric,
+    });
+    _previousFid = metric;
+  });
+}
+
+/**
+ * 用于启动对 TTFB 的监控
+ * @returns
+ */
+function instrumentTtfb(): StopListening {
+  return onTTFB((metric) => {
+    // 触发与 TTFB 指标相关的所有处理函数
+    triggerHandlers('ttfb', {
+      metric,
+    });
+    // 将当前的 TTFB 指标值存储，以便后续使用和比较
+    // 这有助于保持对 TTFB 值的历史记录，以便在需要时进行分析
+    _previousTtfb = metric;
+  });
+}
+
+/**
+ * 负责启动 INP 计算的核心函数
+ * @returns
+ */
+function instrumentInp(): void {
+  return onINP((metric) => {
+    triggerHandlers('inp', {
+      metric,
+    });
+    _previousInp = metric;
+  });
+}
+
+/**
+ * 通过检查' duration '属性来检查PerformanceEntry是否是PerformanceEventTiming
+ */
+export function isPerformanceEventTiming(
+  entry: PerformanceEntry,
+): entry is PerformanceEventTiming {
+  return 'duration' in entry;
 }

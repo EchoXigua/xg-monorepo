@@ -20,17 +20,26 @@ import { generateUniqueID } from './generateUniqueID';
 import { getActivationStart } from './getActivationStart';
 import { getNavigationEntry } from './getNavigationEntry';
 
-export const initMetric = <MetricName extends MetricType['name']>(name: MetricName, value?: number) => {
+export const initMetric = <MetricName extends MetricType['name']>(
+  name: MetricName,
+  value?: number,
+) => {
   const navEntry = getNavigationEntry();
   let navigationType: MetricType['navigationType'] = 'navigate';
 
   if (navEntry) {
-    if ((WINDOW.document && WINDOW.document.prerendering) || getActivationStart() > 0) {
+    if (
+      (WINDOW.document && WINDOW.document.prerendering) ||
+      getActivationStart() > 0
+    ) {
       navigationType = 'prerender';
     } else if (WINDOW.document && WINDOW.document.wasDiscarded) {
       navigationType = 'restore';
     } else if (navEntry.type) {
-      navigationType = navEntry.type.replace(/_/g, '-') as MetricType['navigationType'];
+      navigationType = navEntry.type.replace(
+        /_/g,
+        '-',
+      ) as MetricType['navigationType'];
     }
   }
 
