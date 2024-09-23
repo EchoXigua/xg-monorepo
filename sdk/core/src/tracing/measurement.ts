@@ -21,6 +21,7 @@ export function setMeasurement(
   const rootSpan = activeSpan && getRootSpan(activeSpan);
 
   if (rootSpan) {
+    // 将测量信息添加到根 span
     rootSpan.addEvent(name, {
       [SEMANTIC_ATTRIBUTE_SENTRY_MEASUREMENT_VALUE]: value,
       [SEMANTIC_ATTRIBUTE_SENTRY_MEASUREMENT_UNIT]: unit as string,

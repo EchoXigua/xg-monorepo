@@ -488,7 +488,6 @@ export const browserTracingIntegration = ((
           startBrowserTracingPageLoadSpan(client, {
             // 当前页面的路径名
             name: WINDOW.location.pathname,
-            // pageload should always start at timeOrigin (and needs to be in s, not ms)
             // 页面加载应该始终从 timeOrigin 开始，转化为秒
             startTime: browserPerformanceTimeOrigin
               ? browserPerformanceTimeOrigin / 1000
@@ -593,11 +592,14 @@ export const browserTracingIntegration = ((
 }) satisfies IntegrationFn;
 
 /**
- * Manually start a page load span.
- * This will only do something if a browser tracing integration integration has been setup.
+ * 手动启动一个页面加载的 span，用于浏览器的性能跟踪
+ * 会在配置了浏览器追踪集成的情况下执行
  *
- * If you provide a custom `traceOptions` object, it will be used to continue the trace
- * instead of the default behavior, which is to look it up on the <meta> tags.
+ * 允许用户传入自定义的 traceOptions 对象。
+ * traceOptions 中包含了 sentryTrace 和 baggage 等信息，用于控制追踪的行为
+ * 如果没有提供自定义的 traceOptions，函数将使用默认行为，即从 HTML <meta> 标签中查找追踪信息
+ * 这通常指的是页面头部的 meta 标签中包含的 sentry-trace 或者其他追踪上下文信息
+ *
  */
 export function startBrowserTracingPageLoadSpan(
   client: Client,
@@ -607,60 +609,88 @@ export function startBrowserTracingPageLoadSpan(
     baggage?: string | undefined;
   },
 ): Span | undefined {
+  // 触发事件,表示页面开始加载
   client.emit('startPageLoadSpan', spanOptions, traceOptions);
 
+  // 设置事务名称
+  // 事务名称通常表示当前的页面或操作名称，方便后续进行性能监控分析
   getCurrentScope().setTransactionName(spanOptions.name);
 
   const span = getActiveSpan();
   const op = span && spanToJSON(span).op;
+  // 只在页面加载的追踪上下文中返回 span，否则返回 undefined 表示没有有效的 pageload
   return op === 'pageload' ? span : undefined;
 }
 
 /**
- * Manually start a navigation span.
- * This will only do something if a browser tracing integration has been setup.
+ * 用于手动启动一个导航（navigation）的 span
+ * 它的功能仅在浏览器集成了追踪功能的情况下有效
  */
 export function startBrowserTracingNavigationSpan(
   client: Client,
   spanOptions: StartSpanOptions,
 ): Span | undefined {
+  // 设置传播上下文
   getIsolationScope().setPropagationContext(generatePropagationContext());
   getCurrentScope().setPropagationContext(generatePropagationContext());
 
+  // 触发导航开始事件
   client.emit('startNavigationSpan', spanOptions);
 
+  // 设置事务名称
   getCurrentScope().setTransactionName(spanOptions.name);
 
   const span = getActiveSpan();
   const op = span && spanToJSON(span).op;
+
+  // 当前 span 是一个导航相关的追踪操作，函数会返回该 span 否则返回undefined
   return op === 'navigation' ? span : undefined;
 }
 
-/** Returns the value of a meta tag */
+/**
+ * 用于获取 HTML 文档中指定 meta 标签的 content 属性值
+ */
 export function getMetaContent(metaName: string): string | undefined {
-  // Can't specify generic to `getDomElement` because tracing can be used
-  // in a variety of environments, have to disable `no-unsafe-member-access`
-  // as a result.
+  /**
+   * getDomElement 函数可以在多种环境下使用（不仅限于浏览器环境），因此无法指定它的泛型类型
+   * 因此必须禁用' no- unsafety -member-access '
+   */
+
+  // 获取指定 mete 属性的 dom 元素
   const metaTag = getDomElement(`meta[name=${metaName}]`);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   return metaTag ? metaTag.getAttribute('content') : undefined;
 }
 
-/** Start listener for interaction transactions */
+/**
+ * 用于监听用户的交互行为（主要是点击事件），并在适当的条件下创建一个交互事务
+ *
+ * @param idleTimeout 空闲超时时间
+ * @param finalTimeout 最终超时时间
+ * @param childSpanTimeout 子 span 的超时时间
+ * @param latestRoute 当前的路由信息，包含交互事务的名称和来源
+ */
 function registerInteractionListener(
   idleTimeout: BrowserTracingOptions['idleTimeout'],
   finalTimeout: BrowserTracingOptions['finalTimeout'],
   childSpanTimeout: BrowserTracingOptions['childSpanTimeout'],
   latestRoute: RouteInfo,
 ): void {
+  /** 用于跟踪正在进行中的交互事务的 span */
   let inflightInteractionSpan: Span | undefined;
+
+  // 用于创建一个新的交互 span，并处理一些条件判断
   const registerInteractionTransaction = (): void => {
     const op = 'ui.action.click';
 
     const activeSpan = getActiveSpan();
     const rootSpan = activeSpan && getRootSpan(activeSpan);
     if (rootSpan) {
+      // 获取当前 根span 的操作类型
       const currentRootSpanOp = spanToJSON(rootSpan).op;
+
+      // 如果是页面加载 和 导航 直接返回
+      // 避免在页面加载或导航过程中创建不必要的交互事务
       if (['navigation', 'pageload'].includes(currentRootSpanOp as string)) {
         DEBUG_BUILD &&
           logger.warn(
@@ -670,6 +700,7 @@ function registerInteractionListener(
       }
     }
 
+    // 如果已经存在一个未结束的交互 span，它将被标记为由于“交互中断”而结束，并调用 .end() 方法结束它
     if (inflightInteractionSpan) {
       inflightInteractionSpan.setAttribute(
         SEMANTIC_ATTRIBUTE_SENTRY_IDLE_SPAN_FINISH_REASON,
@@ -679,6 +710,7 @@ function registerInteractionListener(
       inflightInteractionSpan = undefined;
     }
 
+    // 如果当前路由信息中没有事务名称，则不会创建新的交互事务，并输出一条警告日志
     if (!latestRoute.name) {
       DEBUG_BUILD &&
         logger.warn(
@@ -687,6 +719,7 @@ function registerInteractionListener(
       return undefined;
     }
 
+    // 创建一个新的空闲 span，并设置一些相关属性
     inflightInteractionSpan = startIdleSpan(
       {
         name: latestRoute.name,
@@ -704,9 +737,10 @@ function registerInteractionListener(
   };
 
   if (WINDOW.document) {
+    // 注册点击事件
     addEventListener('click', registerInteractionTransaction, {
-      once: false,
-      capture: true,
+      once: false, // 不会在第一次触发后自动移除
+      capture: true, // 启用捕获模式，优先处理点击事件
     });
   }
 }

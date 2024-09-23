@@ -19,7 +19,10 @@ import type { StartSpanOptions } from './startSpanOptions';
 import type { Transport, TransportMakeRequestResponse } from './transport';
 
 /**
- * User-Facing Sentry SDK Client.
+ * 面向用户的客户端,用于与 Sentry 进行交互
+ *
+ * 这个接口定义了一系列方法和钩子（hooks），用于捕获异常、发送事件、记录会话、处理自定义逻辑等
+ * 每个方法在 SDK 被安装后，可用于发送事件到 Sentry，或者自定义事件处理逻辑
  *
  * This interface contains all methods to interface with the SDK once it has
  * been installed. It allows to send events to Sentry, record breadcrumbs and
@@ -29,14 +32,14 @@ import type { Transport, TransportMakeRequestResponse } from './transport';
  */
 export interface Client<O extends ClientOptions = ClientOptions> {
   /**
-   * Captures an exception event and sends it to Sentry.
+   * 捕获异常并发送到 Sentry
    *
-   * Unlike `captureException` exported from every SDK, this method requires that you pass it the current scope.
+   * 不像从每个SDK导出的' captureException '，这个方法需要你传递给它当前作用域
    *
-   * @param exception An exception-like object.
-   * @param hint May contain additional information about the original exception.
-   * @param currentScope An optional scope containing event metadata.
-   * @returns The event id
+   * @param exception 要捕获的异常对象
+   * @param hint 额外的异常信息（可选）
+   * @param currentScope 当前作用域，包含元数据（可选）
+   * @returns 生成的事件 ID
    */
   captureException(
     exception: any,
@@ -45,15 +48,15 @@ export interface Client<O extends ClientOptions = ClientOptions> {
   ): string;
 
   /**
-   * Captures a message event and sends it to Sentry.
+   * 捕获一条信息（message）并发送到 Sentry，通常用于手动记录日志或调试信息
    *
-   * Unlike `captureMessage` exported from every SDK, this method requires that you pass it the current scope.
+   * 不像从每个SDK导出的' captureMessage '，这个方法需要你传递给它当前的作用域
    *
-   * @param message The message to send to Sentry.
-   * @param level Define the level of the message.
-   * @param hint May contain additional information about the original exception.
-   * @param currentScope An optional scope containing event metadata.
-   * @returns The event id
+   * @param message 要发送的消息
+   * @param level 消息的级别（如 error、warning 等）
+   * @param hint 额外信息（可选）
+   * @param currentScope 当前作用域（可选）
+   * @returns 生成的事件 ID
    */
   captureMessage(
     message: string,
@@ -63,32 +66,33 @@ export interface Client<O extends ClientOptions = ClientOptions> {
   ): string;
 
   /**
-   * Captures a manually created event and sends it to Sentry.
+   * 发送手动创建的事件，直接将一个预先构建的 Event 对象发送到 Sentry
    *
-   * Unlike `captureEvent` exported from every SDK, this method requires that you pass it the current scope.
+   * 不像从每个SDK导出的' captureEvent '，这个方法需要你传递它当前的作用域。
    *
-   * @param event The event to send to Sentry.
-   * @param hint May contain additional information about the original exception.
-   * @param currentScope An optional scope containing event metadata.
-   * @returns The event id
+   * @param event 事件对象
+   * @param hint 额外信息（可选）
+   * @param currentScope 当前作用域（可选）
+   * @returns 生成的事件 ID
    */
   captureEvent(event: Event, hint?: EventHint, currentScope?: Scope): string;
 
   /**
-   * Captures a session
+   * 捕获会话信息，用于跟踪会话状态
    *
-   * @param session Session to be delivered
+   * @param session 需要捕获的会话对象
    */
   captureSession(session: Session): void;
 
   /**
-   * Create a cron monitor check in and send it to Sentry. This method is not available on all clients.
+   * 创建 cron 监控的检查点，并发送到 Sentry
+   * 此方法并非在所有客户端上都可用。
    *
-   * @param checkIn An object that describes a check in.
-   * @param upsertMonitorConfig An optional object that describes a monitor config. Use this if you want
-   * to create a monitor automatically when sending a check in.
-   * @param scope An optional scope containing event metadata.
-   * @returns A string representing the id of the check in.
+   * @param checkIn 检查点的描述对象
+   * @param upsertMonitorConfig 描述监视器配置的可选对象
+   * 如果您希望在发送签入时自动创建监视器，请使用此选项
+   * @param scope 当前作用域（可选）
+   * @returns  检查点的 ID
    */
   captureCheckIn?(
     checkIn: CheckIn,
@@ -96,73 +100,86 @@ export interface Client<O extends ClientOptions = ClientOptions> {
     scope?: Scope,
   ): string;
 
-  /** Returns the current Dsn. */
+  /** 获取当前 Sentry 的 DSN（数据源名称），用于标识发送数据的目标 Sentry 项目 */
   getDsn(): DsnComponents | undefined;
 
-  /** Returns the current options. */
+  /** 获取当前客户端的配置选项 */
   getOptions(): O;
 
   /**
+   * 获取 SDK 的元数据
    * @inheritdoc
    *
    */
   getSdkMetadata(): SdkMetadata | undefined;
 
   /**
-   * Returns the transport that is used by the client.
-   * Please note that the transport gets lazy initialized so it will only be there once the first event has been sent.
+   * 获取用于发送事件的传输层实现
    *
-   * @returns The transport.
+   * 传输层并不会在客户端初始化时立刻创建，而是采用惰性初始化的方式。
+   * 这意味着只有当第一个事件被发送时，传输层才会被创建和初始化
+   *
+   * 通过惰性初始化，Sentry 可以节省资源，只有在需要的时候才会初始化传输层，减少不必要的开销
+   *
+   * @returns 传输层对象（如果事件未发送过，则返回 undefined）
    */
   getTransport(): Transport | undefined;
 
   /**
-   * Flush the event queue and set the client to `enabled = false`. See {@link Client.flush}.
+   * 用于刷新事件队列并将客户端的状态设置为 enabled = false，也就是关闭客户端，使其停止处理和发送事件
+   * See {@link Client.flush}.
    *
-   * @param timeout Maximum time in ms the client should wait before shutting down. Omitting this parameter will cause
-   *   the client to wait until all events are sent before disabling itself.
-   * @returns A promise which resolves to `true` if the flush completes successfully before the timeout, or `false` if
-   * it doesn't.
+   * @param timeout 表示客户端等待关闭的最长时间，单位为毫秒（ms）
+   * - 如果指定了 timeout，客户端将在指定时间内等待所有事件发送完成后关闭
+   * - 如果没有指定 timeout，客户端将会等待所有事件发送完毕再关闭，无论需要多长时间
+   * @returns 如果在 timeout 时间内成功完成所有事件的发送并关闭客户端，Promise 会解析为 true
+   * 如果超出 timeout 时间，还有事件未能发送，Promise 会解析为 false
    */
   close(timeout?: number): PromiseLike<boolean>;
 
   /**
-   * Wait for all events to be sent or the timeout to expire, whichever comes first.
+   * 用于等待所有事件发送完毕或等待超时，以确保在执行其他操作之前尽可能多地发送待处理事件
    *
-   * @param timeout Maximum time in ms the client should wait for events to be flushed. Omitting this parameter will
-   *   cause the client to wait until all events are sent before resolving the promise.
-   * @returns A promise that will resolve with `true` if all events are sent before the timeout, or `false` if there are
-   * still events in the queue when the timeout is reached.
+   * @param timeout 表示客户端等待所有事件发送完成的最长时间，单位为毫秒（ms）
+   * - 如果指定了 timeout，客户端将在指定时间内等待所有事件发送完成后关闭
+   * - 如果没有指定 timeout，客户端将会等待所有事件发送完毕再关闭，无论需要多长时间
+   * @returns
+   *  - 如果在指定的 timeout 时间内成功发送完所有事件，Promise 会解析为 true
+   *  - 如果超出 timeout 时间还有事件未能发送，Promise 会解析为 false
    */
   flush(timeout?: number): PromiseLike<boolean>;
 
   /**
-   * Adds an event processor that applies to any event processed by this client.
+   * 添加一个事件处理器，用于处理或修改任何要发送的事件
    */
   addEventProcessor(eventProcessor: EventProcessor): void;
 
   /**
-   * Get all added event processors for this client.
+   * 获取所有已添加的事件处理器
    */
   getEventProcessors(): EventProcessor[];
 
-  /** Get the instance of the integration with the given name on the client, if it was added. */
+  /** 获取指定名称的集成 */
   getIntegrationByName<T extends Integration = Integration>(
     name: string,
   ): T | undefined;
 
   /**
-   * Add an integration to the client.
-   * This can be used to e.g. lazy load integrations.
-   * In most cases, this should not be necessary, and you're better off just passing the integrations via `integrations: []` at initialization time.
-   * However, if you find the need to conditionally load & add an integration, you can use `addIntegration` to do so.
+   * 用于向客户端添加一个集成
+   * 集成是用于扩展 Sentry 功能的模块，可以帮助捕获特定的事件或提供额外的上下文信息
    *
+   * - 延迟加载集成：这个方法可以在运行时添加集成，而不是在初始化时一次性加载所有集成
+   * 这种方式称为“懒加载”，可以提高性能，特别是在集成不一定会被使用的情况下
+   * - 条件加载：如果某些集成仅在特定条件下需要，可以使用 addIntegration 方法来根据需要动态地添加集成
+   *
+   * - 通常情况下，推荐在初始化客户端时通过 integrations: [] 直接传入所有需要的集成，
+   * 而不是在运行时逐个添加。这是因为在初始化时可以确保所有集成都已正确配置。
    * */
   addIntegration(integration: Integration): void;
 
   /**
-   * Initialize this client.
-   * Call this after the client was set on a scope.
+   * 初始化客户端
+   * 在将客户端设置为作用域后调用此函数
    */
   init(): void;
 

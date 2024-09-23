@@ -374,11 +374,15 @@ export function addPerformanceEntries(
           // 创建相应的 span，同时会记录一些关键的 Web Vitals 数据（如 FP、FCP 等）
           _addMeasureSpans(span, entry, startTime, duration, timeOrigin);
 
-          // capture web vitals
+          // 这里的代码主要作用是捕获和记录网页加载过程中关键的 Web Vitals 指标
+          // 具体为 FP（First Paint，首次绘制） 和 FCP（First Contentful Paint，首次内容绘制）
+
+          // 页面可见性状态(firstHiddenTime 页面第一次被隐藏的时间点)
           const firstHidden = getVisibilityWatcher();
-          // Only report if the page wasn't hidden prior to the web vital.
+          // 只有在页面没有被隐藏的情况下才会报告 Web Vitals,因为页面被隐藏后，绘制操作对用户已经没有意义
           const shouldRecord = entry.startTime < firstHidden.firstHiddenTime;
 
+          // 捕获FP
           if (entry.name === 'first-paint' && shouldRecord) {
             DEBUG_BUILD && logger.log('[Measurements] Adding FP');
             _measurements['fp'] = {
@@ -386,6 +390,7 @@ export function addPerformanceEntries(
               unit: 'millisecond',
             };
           }
+          // 捕获FCP
           if (entry.name === 'first-contentful-paint' && shouldRecord) {
             DEBUG_BUILD && logger.log('[Measurements] Adding FCP');
             _measurements['fcp'] = {
@@ -415,16 +420,20 @@ export function addPerformanceEntries(
       }
     });
 
+  // 更新指针
   _performanceCursor = Math.max(performanceEntries.length - 1, 0);
 
   _trackNavigator(span);
 
-  // Measurements are only available for pageload transactions
+  // 只有在页面加载时，才会进行性能测量指标的记录与处理。
   if (op === 'pageload') {
+    // 添加 TTFB（Time to First Byte，首字节到达时间）,TTFB 是衡量服务器响应速度的重要指标
     _addTtfbRequestTimeToMeasurements(_measurements);
 
+    // 对这三个指标进行处理
     ['fcp', 'fp', 'lcp'].forEach((name) => {
       const measurement = _measurements[name];
+      // 当前测量值不存在 或者 事务的开始时间也不存在 或者 事务的开始时间早于 时间原点 直接返回 不处理
       if (
         !measurement ||
         !transactionStartTime ||
@@ -432,28 +441,34 @@ export function addPerformanceEntries(
       ) {
         return;
       }
-      // The web vitals, fcp, fp, lcp, and ttfb, all measure relative to timeOrigin.
-      // Unfortunately, timeOrigin is not captured within the span span data, so these web vitals will need
-      // to be adjusted to be relative to span.startTimestamp.
+      /**
+       * 这些 web vitals（FCP、FP、LCP 和 TTFB）都是相对于 timeOrigin 进行测量的，
+       * 但 timeOrigin 并未在 span 数据中捕获，因此需要将这些值调整为相对于 span.startTimestamp
+       */
       const oldValue = measurement.value;
       const measurementTimestamp = timeOrigin + msToSec(oldValue);
 
-      // normalizedValue should be in milliseconds
+      // 计算标准化值
       const normalizedValue = Math.abs(
         (measurementTimestamp - transactionStartTime) * 1000,
       );
+
+      // 计算标准化值与旧值之间的差异
       const delta = normalizedValue - oldValue;
 
       DEBUG_BUILD &&
         logger.log(
           `[Measurements] Normalized ${name} from ${oldValue} to ${normalizedValue} (${delta})`,
         );
+
+      // 更新测量的值为标准化后的值
       measurement.value = normalizedValue;
     });
 
+    // 获取 mark.fid 的测量值并检查 fid 是否存在
     const fidMark = _measurements['mark.fid'];
     if (fidMark && _measurements['fid']) {
-      // create span for FID
+      // 创建 FID span
       startAndEndSpan(
         span,
         fidMark.value,
@@ -467,30 +482,44 @@ export function addPerformanceEntries(
         },
       );
 
-      // Delete mark.fid as we don't want it to be part of final payload
+      // 删除 mark.fid，因为它不需要包含在最终的负载中
       delete _measurements['mark.fid'];
     }
 
-    // If FCP is not recorded we should not record the cls value
-    // according to the new definition of CLS.
-    // TODO: Check if the first condition is still necessary: `onCLS` already only fires once `onFCP` was called.
+    /**
+     * 如果 FCP 没有被记录，按照新的 CLS 定义不应该记录 CLS 值
+     * TODO，表示未来可能需要检查这个条件是否依然必要
+     */
     if (!('fcp' in _measurements) || !options.recordClsOnPageloadSpan) {
       delete _measurements.cls;
     }
 
+    // 遍历所有测量值,将测量名称、值和单位设置到适当的位置
     Object.entries(_measurements).forEach(([measurementName, measurement]) => {
       setMeasurement(measurementName, measurement.value, measurement.unit);
     });
 
+    // 为当前的 span 标记度量信息
     _tagMetricInfo(span);
   }
 
+  // 重置数据
   _lcpEntry = undefined;
   _clsEntry = undefined;
   _measurements = {};
 }
 
-/** Create measure related spans */
+/**
+ * 根据浏览器性能 API 的 measure 类型条目，创建与页面加载性能相关的 span（即追踪片段）
+ * 还会调整 span 的时间戳以确保它们是合理的，并处理一些特殊情况，例如 measure 的时间戳在页面请求之前的情况
+ *
+ * @param span 当前追踪事务的根 span
+ * @param entry 传入的性能条目
+ * @param startTime 性能条目的开始时间
+ * @param duration 性能条目的持续时间
+ * @param timeOrigin 浏览器时间起点
+ * @returns
+ */
 export function _addMeasureSpans(
   span: Span,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -499,27 +528,52 @@ export function _addMeasureSpans(
   duration: number,
   timeOrigin: number,
 ): number {
+  // 获取页面导航条目
   const navEntry = getNavigationEntry();
+  // 获取浏览器开始发出请求的时间点
   const requestTime = msToSec(navEntry ? navEntry.requestStart : 0);
-  // Because performance.measure accepts arbitrary timestamps it can produce
-  // spans that happen before the browser even makes a request for the page.
-  //
-  // An example of this is the automatically generated Next.js-before-hydration
-  // spans created by the Next.js framework.
-  //
-  // To prevent this we will pin the start timestamp to the request start time
-  // This does make duration inaccruate, so if this does happen, we will add
-  // an attribute to the span
+  /**
+   * 这里解释了为什么要对 performance.measure 生成的 span 的开始时间进行调整
+   *
+   * 1. 性能测量中的时间戳问题
+   *  - performance.measure 方法允许使用任意的时间戳（即它不强制要求时间戳必须在页面请求之后）
+   *  意味着，它可能会生成一些 span（追踪片段），这些 span 的时间点是在浏览器开始请求页面之前的
+   *  - 比如 Next.js 框架会自动生成一些 Next.js-before-hydration 的 span
+   *  这些 span 表示的是在浏览器真正加载页面内容（hydration）之前的时间点
+   *  由于这些 span 在页面请求之前，直接使用这些时间戳可能会导致追踪数据不准确
+   *
+   * 2. 防止问题发生的解决方法
+   *  - 为了避免生成的 span 出现这种异常情况，代码会强制将 span 的开始时间与页面请求的开始时间（requestStart）对齐
+   *  如果 span 的原始开始时间早于 requestStart，就会使用 requestStart 作为新的开始时间
+   *  - 这种对齐方式确保了所有的 span 都是在页面请求之后生成的，避免了时间顺序上的问题
+   *
+   * 3. 对持续时间的影响
+   *  - 将开始时间对齐到 requestStart 可能会导致 span 的持续时间不准确
+   *  因为实际开始时间被强制推后了，持续时间可能比真实的要短
+   *  - 为了应对这种不准确性，代码会在 span 中添加一个属性，明确标识该 span 的开始时间是经过调整的
+   *  用于表明该测量条目原本是在页面请求之前发生的
+   */
+
+  // 修正测量的开始时间,确保生成的 span 不会在页面请求之前发生
+  // （例如，在 Next.js 中可能会生成“页面加载之前”的 span，但这些 span的开始时间实际上是在浏览器发出请求之前）
   const measureStartTimestamp = timeOrigin + Math.max(startTime, requestTime);
+  // 开始时间
   const startTimeStamp = timeOrigin + startTime;
+  // 测量的结束时间
   const measureEndTimestamp = startTimeStamp + duration;
 
+  // 设置自定义属性
   const attributes: SpanAttributes = {
+    // 来源为浏览器的测量
     [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.resource.browser.metrics',
   };
 
+  // 不相等，说明 span 的开始时间被调整过了（即，实际的 startTime 发生在页面请求之前）
+  // 会给 span 加上两个自定义属
   if (measureStartTimestamp !== startTimeStamp) {
+    // 标记该 span 发生在页面请求之前
     attributes['sentry.browser.measure_happened_before_request'] = true;
+    // 记录调整后的开始时间
     attributes['sentry.browser.measure_start_time'] = measureStartTimestamp;
   }
 
@@ -529,6 +583,7 @@ export function _addMeasureSpans(
     attributes,
   });
 
+  // 返回测量的开始时间
   return measureStartTimestamp;
 }
 
@@ -641,24 +696,57 @@ function _addPerformanceNavigationTiming(
   );
 }
 
-/** Create request and response related spans */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/**
+ * 这个函数的目的是为请求和响应阶段创建与之相关的性能追踪片段（span）
+ * 通过 Performance API 获取相关的时间信息，并根据请求和响应的开始和结束时间创建 span
+ * 这样可以帮助跟踪浏览器中 HTTP 请求的性能，包括请求发送和响应接收的时间段
+ *
+ * @param span 根 span，用于关联这些事件的追踪片段
+ * @param entry Performance API 导航条目，包含性能数据
+ * @param timeOrigin 时间原点，用于将时间对齐为绝对时间
+ */
 function _addRequest(
   span: Span,
   entry: Record<string, any>,
   timeOrigin: number,
 ): void {
+  // 请求的开始时间
   const requestStartTimestamp =
     timeOrigin + msToSec(entry.requestStart as number);
+  // 响应的结束时间
   const responseEndTimestamp =
     timeOrigin + msToSec(entry.responseEnd as number);
+
+  // 响应的开始时间
   const responseStartTimestamp =
     timeOrigin + msToSec(entry.responseStart as number);
+
+  // 确保 responseEnd 有效（即页面的请求已经完成）
   if (entry.responseEnd) {
-    // It is possible that we are collecting these metrics when the page hasn't finished loading yet, for example when the HTML slowly streams in.
-    // In this case, ie. when the document request hasn't finished yet, `entry.responseEnd` will be 0.
-    // In order not to produce faulty spans, where the end timestamp is before the start timestamp, we will only collect
-    // these spans when the responseEnd value is available. The backend (Relay) would drop the entire span if it contained faulty spans.
+    /**
+     * 这里的注释解释了代码潜在的一个问题，如何避免生成无效的追踪片段（spans），并介绍了采取的预防措施
+     *
+     * 1. 延迟加载的情况
+     *  - 在页面尚未完全加载时（例如，HTML 内容以流式方式逐渐加载），可能会出现性能数据还未完全收集的情况
+     *  在这种情况下，性能条目中的 responseEnd（表示响应结束的时间）可能会是 0，因为请求尚未完成
+     *
+     * 2. responseEnd 为 0 的情况
+     *  - 当 responseEnd 为 0 时，意味着页面请求还在进行中
+     *  如果此时生成一个 span，可能会导致 结束时间早于开始时间 的情况，从而产生不合理的 span
+     *
+     * 3. 预防措施
+     *  - 防止创建出时间不合理的追踪片段，代码只会在 responseEnd 有效
+     *  （即不为 0）时，才生成 request 和 response 的 span
+     *
+     * 4. 后台（Relay）的处理
+     *  - 如果生成了一个无效的 span（例如，结束时间在开始时间之前），
+     *  后台（Relay）会将整个 span 丢弃。为了避免这种情况，
+     *  代码通过检查 responseEnd 的值来确保只有在数据完整时才收集这些 span。
+     *
+     */
+
+    // 为请求阶段创建一个 span
     startAndEndSpan(span, requestStartTimestamp, responseEndTimestamp, {
       op: 'browser',
       name: 'request',
@@ -667,6 +755,7 @@ function _addRequest(
       },
     });
 
+    // 为响应阶段创建一个 span
     startAndEndSpan(span, responseStartTimestamp, responseEndTimestamp, {
       op: 'browser',
       name: 'response',
@@ -677,7 +766,19 @@ function _addRequest(
   }
 }
 
-/** Create resource-related spans */
+export interface ResourceEntry extends Record<string, unknown> {
+  initiatorType?: string;
+  transferSize?: number;
+  encodedBodySize?: number;
+  decodedBodySize?: number;
+  renderBlockingStatus?: string;
+}
+
+/**
+ * 这个函数的作用是创建与资源（如图片、脚本、样式表等）加载相关的性能跨度（spans）
+ * 并将其记录到应用程序的性能监控中
+ *
+ */
 export function _addResourceSpans(
   span: Span,
   entry: ResourceEntry,
@@ -686,8 +787,8 @@ export function _addResourceSpans(
   duration: number,
   timeOrigin: number,
 ): void {
-  // we already instrument based on fetch and xhr, so we don't need to
-  // duplicate spans here.
+  // 排除了 XMLHttpRequest 和 fetch 类型的资源加载
+  // 因为这些请求已经被单独的处理过了,避免重复记录
   if (
     entry.initiatorType === 'xmlhttprequest' ||
     entry.initiatorType === 'fetch'
@@ -695,23 +796,32 @@ export function _addResourceSpans(
     return;
   }
 
+  // 解析资源的 URL
   const parsedUrl = parseUrl(resourceUrl);
 
+  // 构建属性对象
   const attributes: SpanAttributes = {
+    // 来源是 从浏览器资源性能数据中提取的
     [SEMANTIC_ATTRIBUTE_SENTRY_ORIGIN]: 'auto.resource.browser.metrics',
   };
+
+  // 将资源的大小添加到 属性对象中
+
+  // 传输大小，代表资源从服务器传输到客户端的字节数，包括 HTTP 头部信息和内容
   setResourceEntrySizeData(
     attributes,
     entry,
     'transferSize',
     'http.response_transfer_size',
   );
+  // 编码后的资源大小，表示传输前压缩后的资源内容大小
   setResourceEntrySizeData(
     attributes,
     entry,
     'encodedBodySize',
     'http.response_content_length',
   );
+  // 解码后的资源大小，表示在客户端解压后的资源内容大小
   setResourceEntrySizeData(
     attributes,
     entry,
@@ -719,9 +829,12 @@ export function _addResourceSpans(
     'http.decoded_response_content_length',
   );
 
+  // renderBlockingStatus 表示该资源是否是页面渲染的阻塞资源（例如，CSS 文件通常是渲染阻塞的）
   if ('renderBlockingStatus' in entry) {
     attributes['resource.render_blocking_status'] = entry.renderBlockingStatus;
   }
+
+  // 将协议、主机 添加到属性对象中
   if (parsedUrl.protocol) {
     attributes['url.scheme'] = parsedUrl.protocol.split(':').pop(); // the protocol returned by parseUrl includes a :, but OTEL spec does not, so we remove it.
   }
@@ -730,24 +843,27 @@ export function _addResourceSpans(
     attributes['server.address'] = parsedUrl.host;
   }
 
+  // 检查资源是否与当前页面在同一个来源（same-origin）,标识资源是否跨域加载
   attributes['url.same_origin'] = resourceUrl.includes(WINDOW.location.origin);
 
+  // 计算资源加载的开始时间和结束时间
   const startTimestamp = timeOrigin + startTime;
   const endTimestamp = startTimestamp + duration;
 
   startAndEndSpan(span, startTimestamp, endTimestamp, {
-    name: resourceUrl.replace(WINDOW.location.origin, ''),
+    name: resourceUrl.replace(WINDOW.location.origin, ''), // 相对路径
     op: entry.initiatorType
-      ? `resource.${entry.initiatorType}`
+      ? `resource.${entry.initiatorType}` // initiatorType 资源加载类型,如script、img
       : 'resource.other',
     attributes,
   });
 }
 
 /**
- * Capture the information of the user agent.
+ * 捕获用户代理的信息
  */
 function _trackNavigator(span: Span): void {
+  // 检查是否存在,不存在直接返回
   const navigator = WINDOW.navigator as
     | null
     | (Navigator & NavigatorNetworkInformation & NavigatorDeviceMemory);
@@ -755,17 +871,20 @@ function _trackNavigator(span: Span): void {
     return;
   }
 
-  // track network connectivity
+  // 追踪网络连接信息
   const connection = navigator.connection;
   if (connection) {
+    // 如果有效连接类型（如 4G、3G 等）可用，则将其作为属性添加到 span 中
     if (connection.effectiveType) {
       span.setAttribute('effectiveConnectionType', connection.effectiveType);
     }
 
+    // 如果连接类型（如 wifi、cellular 等）可用，则将其作为属性添加到 span 中
     if (connection.type) {
       span.setAttribute('connectionType', connection.type);
     }
 
+    // 如果 RTT 值可用且有效，将 rtt 记录到 测量对象中
     if (isMeasurementValue(connection.rtt)) {
       _measurements['connection.rtt'] = {
         value: connection.rtt,
@@ -774,10 +893,12 @@ function _trackNavigator(span: Span): void {
     }
   }
 
+  // 如果设备内存信息有效，则将设备内存大小（以 GB 为单位）作为属性记录到 span 中
   if (isMeasurementValue(navigator.deviceMemory)) {
     span.setAttribute('deviceMemory', `${navigator.deviceMemory} GB`);
   }
 
+  // 如果 CPU 的逻辑核心数有效，则将其作为属性记录到 span 中
   if (isMeasurementValue(navigator.hardwareConcurrency)) {
     span.setAttribute(
       'hardwareConcurrency',
@@ -786,12 +907,16 @@ function _trackNavigator(span: Span): void {
   }
 }
 
-/** Add LCP / CLS data to span to allow debugging */
+/**
+ * 将与 LCP（Largest Contentful Paint）和 CLS（Cumulative Layout Shift）
+ * 相关的数据添加到性能跟踪的 span 对象中
+ * @param span
+ */
 function _tagMetricInfo(span: Span): void {
   if (_lcpEntry) {
     DEBUG_BUILD && logger.log('[Measurements] Adding LCP Data');
 
-    // Capture Properties of the LCP element that contributes to the LCP.
+    // 捕获LCP元素的属性
 
     if (_lcpEntry.element) {
       span.setAttribute('lcp.element', htmlTreeAsString(_lcpEntry.element));
@@ -812,6 +937,9 @@ function _tagMetricInfo(span: Span): void {
   // See: https://developer.mozilla.org/en-US/docs/Web/API/LayoutShift
   if (_clsEntry && _clsEntry.sources) {
     DEBUG_BUILD && logger.log('[Measurements] Adding CLS Data');
+
+    // 记录 CLS 源节点,每个源节点调用 htmlTreeAsString 函数，将其转换为字符串并设置为 span 的属性 cls.source.index+1
+    // 这样可以记录所有导致布局偏移的源节点信息
     _clsEntry.sources.forEach((source, index) =>
       span.setAttribute(
         `cls.source.${index + 1}`,
@@ -822,18 +950,44 @@ function _tagMetricInfo(span: Span): void {
 }
 
 /**
- * Add ttfb request time information to measurements.
+ * 主要用于将 资源加载条目中的大小数据（如传输大小、编码和解码后的大小）提取出来，并添加到 attributes 对象中
+ * 如果资源大小存在且小于指定的最大值（MAX_INT_AS_BYTES），则将其作为特定的 HTTP 响应属性进行存储
+ *
+ */
+function setResourceEntrySizeData(
+  attributes: SpanAttributes,
+  entry: ResourceEntry,
+  key: keyof Pick<
+    ResourceEntry,
+    'transferSize' | 'encodedBodySize' | 'decodedBodySize'
+  >,
+  dataKey:
+    | 'http.response_transfer_size'
+    | 'http.response_content_length'
+    | 'http.decoded_response_content_length',
+): void {
+  const entryVal = entry[key];
+  if (entryVal != null && entryVal < MAX_INT_AS_BYTES) {
+    attributes[dataKey] = entryVal;
+  }
+}
+
+/**
+ * 主要用于将 TTFB（Time to First Byte，首字节到达时间）信息添加到性能测量中
  *
  * ttfb information is added via vendored web vitals library.
  */
 function _addTtfbRequestTimeToMeasurements(_measurements: Measurements): void {
+  // 获取当前的导航条目
   const navEntry = getNavigationEntry();
   if (!navEntry) {
     return;
   }
 
+  // 获取响应开始时间和请求开始时间
   const { responseStart, requestStart } = navEntry;
 
+  // 请求开始时间应该早于或等于响应开始
   if (requestStart <= responseStart) {
     DEBUG_BUILD && logger.log('[Measurements] Adding TTFB Request Time');
     _measurements['ttfb.requestTime'] = {
