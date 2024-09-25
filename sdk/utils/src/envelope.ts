@@ -48,10 +48,9 @@ export function addItemToEnvelope<E extends Envelope>(
 }
 
 /**
- * Convenience function to loop through the items and item types of an envelope.
- * (This function was mostly created because working with envelope types is painful at the moment)
+ * 函数主要用于遍历 Envelope 对象中的项目及其类型，并对每个项目执行回调操作
+ * 如果回调返回 true，则遍历过程会提前停止
  *
- * If the callback returns true, the rest of the items will be skipped.
  */
 export function forEachEnvelopeItem<E extends Envelope>(
   envelope: Envelope,
@@ -66,6 +65,7 @@ export function forEachEnvelopeItem<E extends Envelope>(
     const envelopeItemType = envelopeItem[0].type;
     const result = callback(envelopeItem, envelopeItemType);
 
+    // 如果回调函数返回了 true，表示需要提前终止遍历
     if (result) {
       return true;
     }
@@ -160,7 +160,8 @@ const ITEM_TYPE_TO_DATA_CATEGORY_MAP: Record<EnvelopeItemType, DataCategory> = {
 };
 
 /**
- * Maps the type of an envelope item to a data category.
+ * 函数的作用是将 EnvelopeItemType（信封项的类型）映射为 DataCategory（数据类别）
+ * 这通常用于对不同类型的数据进行分类处理
  */
 export function envelopeItemTypeToDataCategory(
   type: EnvelopeItemType,

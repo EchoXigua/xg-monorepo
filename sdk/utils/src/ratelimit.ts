@@ -31,10 +31,10 @@ export function parseRetryAfterHeader(
 }
 
 /**
- * Gets the time that the given category is disabled until for rate limiting.
- * In case no category-specific limit is set but a general rate limit across all categories is active,
- * that time is returned.
+ * 用于获取特定数据类别的速率限制的禁用截止时间。如果该类别没有单独的速率限制，则返回通用的限制时间
  *
+ * @param limits 包含不同数据类别的速率限制截止时间的对象
+ * @param dataCategory 需要查询的具体数据类别
  * @return the time in ms that the category is disabled until or 0 if there's no active rate limit.
  */
 export function disabledUntil(
@@ -45,7 +45,12 @@ export function disabledUntil(
 }
 
 /**
- * Checks if a category is rate limited
+ * 用于检查特定的数据类别是否被速率限制
+ *
+ * @param limits 表示各个数据类别的速率限制时间
+ * @param dataCategory 要检查是否被限制的类别
+ * @param now  当前时间，用来与速率限制截止时间进行比较
+ * @returns
  */
 export function isRateLimited(
   limits: RateLimits,
@@ -56,12 +61,16 @@ export function isRateLimited(
 }
 
 /**
- * Update ratelimits from incoming headers.
+ * 用于从服务器响应的头部信息中提取速率限制（Rate Limit）信息，并更新现有的 RateLimits 对象
  *
  * @return the updated RateLimits object.
  */
 export function updateRateLimits(
   limits: RateLimits,
+  /**
+   * statusCode: HTTP 状态码，用于判断响应是否表明达到速率限制
+   * headers: HTTP 响应头，包含速率限制信息
+   */
   { statusCode, headers }: TransportMakeRequestResponse,
   now: number = Date.now(),
 ): RateLimits {
