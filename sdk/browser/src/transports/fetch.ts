@@ -88,7 +88,6 @@ export function makeFetchTransport(
 
     // 说明原生fetch 可用
     try {
-      debugger;
       // 使用fetch 发送post请求
       return nativeFetch(options.url, requestOptions).then((response) => {
         // 请求完成后更新 请求体大小和请求数

@@ -63,3 +63,16 @@ export type {
   Primitive,
   // WorkerLocation,
 } from './misc';
+
+export type {
+  Span,
+  SentrySpanArguments,
+  SpanOrigin,
+  SpanAttributeValue,
+  SpanAttributes,
+  SpanTimeInput,
+  SpanJSON,
+  SpanContextData,
+  TraceFlag,
+  MetricSummary,
+} from './span';

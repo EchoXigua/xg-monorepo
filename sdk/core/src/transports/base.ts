@@ -138,7 +138,7 @@ export function createTransport(
           DEBUG_BUILD &&
             logger.error('Skipped sending event because buffer is full.');
 
-          // 记录队列溢出丢失事件
+          /** 记录队列溢出丢失事件  */
           recordEnvelopeLoss('queue_overflow');
           return resolvedSyncPromise({});
         } else {
@@ -154,6 +154,13 @@ export function createTransport(
   };
 }
 
+/**
+ * 从传入的 envelope 项中提取 event 或 transaction 类型的数据，并返回对应的 Event 对象
+ *
+ * @param item
+ * @param type
+ * @returns
+ */
 function getEventForEnvelopeItem(
   item: Envelope[1][number],
   type: EnvelopeItemType,
