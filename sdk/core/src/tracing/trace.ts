@@ -154,6 +154,13 @@ function getAcs(): AsyncContextStrategy {
   return getAsyncContextStrategy(carrier);
 }
 
+/**
+ * 用于启动一个根 span，通常用于性能监控和追踪
+ * @param spanArguments 包含有关 span 的参数，例如名称和属性
+ * @param scope 当前作用域，用于跟踪上下文
+ * @param parentSampled 父级 span 是否被采样
+ * @returns
+ */
 function _startRootSpan(
   spanArguments: SentrySpanArguments,
   scope: Scope,
@@ -162,7 +169,10 @@ function _startRootSpan(
   const client = getClient();
   const options: Partial<ClientOptions> = (client && client.getOptions()) || {};
 
+  // 提取属性
   const { name = '', attributes } = spanArguments;
+
+  // 检查当前是否需要采样
   const [sampled, sampleRate] = scope.getScopeData().sdkProcessingMetadata[
     SUPPRESS_TRACING_KEY
   ]
@@ -177,35 +187,33 @@ function _startRootSpan(
         },
       });
 
+  // 创建啊根 span
   const rootSpan = new SentrySpan({
     ...spanArguments,
     attributes: {
+      // 标识这是一个自定义源的 span
       [SEMANTIC_ATTRIBUTE_SENTRY_SOURCE]: 'custom',
       ...spanArguments.attributes,
     },
     sampled,
   });
+  // 存在采样率
   if (sampleRate !== undefined) {
+    // 在根 span上设置采样率
     rootSpan.setAttribute(SEMANTIC_ATTRIBUTE_SENTRY_SAMPLE_RATE, sampleRate);
   }
 
+  // 如果存在客户端，触发spanStart事件
   if (client) {
     client.emit('spanStart', rootSpan);
   }
 
+  // 返回根 span
   return rootSpan;
 }
 
 /**
- * Forks the current scope and sets the provided span as active span in the context of the provided callback. Can be
- * passed `null` to start an entirely new span tree.
- *
- * @param span Spans started in the context of the provided callback will be children of this span. If `null` is passed,
- * spans started within the callback will not be attached to a parent span.
- * @param callback Execution context in which the provided span will be active. Is passed the newly forked scope.
- * @returns the value returned from the provided callback function.
- */
-/**
+
  * 这个函数用于管理与 Sentry 监控相关的「活动 Span」上下文。
  * 它允许你在某个回调函数执行时，将一个 Span 设置为当前活动的 Span，确保在该回调上下文中所有新创建的 Spans 都与这个 Span 相关联。
  *
