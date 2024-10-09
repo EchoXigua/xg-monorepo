@@ -9,7 +9,8 @@ console.log('app', app);
 
 Sentry.init({
   app,
-  dsn: 'http://f70471da81fe3b1c5625e364f3aee1ef@localhost:9000/4',
+  // dsn: 'http://f70471da81fe3b1c5625e364f3aee1ef@localhost:9000/4',
+  dsn: 'https://2a24260c8f23af4db99f7f8af2947653@o4507849254699008.ingest.us.sentry.io/4507921663590400',
   integrations: [
     Sentry.browserTracingIntegration({ router }),
     // Sentry.replayIntegration(),

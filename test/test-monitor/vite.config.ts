@@ -11,10 +11,10 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        entryFileNames: 'js/[name]-[hash].js', // JS 文件名格式
-        chunkFileNames: 'js/[name]-[hash].js',
-        assetFileNames: 'js/[name]-[hash].[ext]', // 确保所有文件名和路径一致
-        sourcemapBaseUrl: 'http://localhost:4173/js/',
+        // entryFileNames: 'js/[name]-[hash].js', // JS 文件名格式
+        // chunkFileNames: 'js/[name]-[hash].js',
+        // assetFileNames: 'js/[name]-[hash].[ext]', // 确保所有文件名和路径一致
+        // sourcemapBaseUrl: 'http://localhost:4173/js/',
       },
     },
   },
@@ -27,19 +27,8 @@ export default defineConfig({
   plugins: [
     vue(),
     sentryVitePlugin({
-      debug: true,
-      org: 'xigua',
-      project: 'test',
-      url: 'http://localhost:9000/',
-      // release: {
-      //   name: 'test-vue@1.0.2',
-      // },
-      sourcemaps: {
-        // assets: ['./dist/assets/*.js.map'],
-        // filesToDeleteAfterUpload: ['dist/**/*.js.map'],
-      },
-      authToken:
-        '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',
+      org: 'xg-p6',
+      project: 'test-vue3',
     }),
   ],
 });

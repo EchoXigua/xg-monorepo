@@ -5,7 +5,8 @@
 
 <script setup lang="ts">
 const handleErr = () => {
-  throw new Error('sentry test');
+  Promise.reject('test promise');
+  // throw new Error('sentry test');
 };
 </script>
 

@@ -53,7 +53,7 @@ export function setCapturedScopesOnSpan(
 }
 
 /**
- * Grabs the scope and isolation scope off a span that were active when the span was started.
+ * 从一个 span 对象中提取当 span 开始时处于活动状态的 scope 和 isolationScope，并将其返回为一个对象
  */
 export function getCapturedScopesOnSpan(span: Span): {
   scope?: Scope;

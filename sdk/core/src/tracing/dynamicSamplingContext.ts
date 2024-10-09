@@ -10,6 +10,7 @@ import {
   // dynamicSamplingContextToSentryBaggageHeader,
 } from '@xigua-monitor/utils';
 import { DEFAULT_ENVIRONMENT } from '../constants';
+import { getClient } from '../currentScopes';
 import { getRootSpan, spanIsSampled, spanToJSON } from '../utils/spanUtils';
 import {
   SEMANTIC_ATTRIBUTE_SENTRY_SAMPLE_RATE,

@@ -350,6 +350,9 @@ importers:
       '@xigua-monitor/vue':
         specifier: workspace:^
         version: link:../../sdk/vue
+      source-map:
+        specifier: ^0.7.4
+        version: 0.7.4
     devDependencies:
       '@sentry/vite-plugin':
         specifier: ^2.22.4
@@ -10291,7 +10294,6 @@ packages:
   /source-map@0.7.4:
     resolution: {integrity: sha512-l3BikUxvPOcn5E74dZiq5BGsTb5yEwhaTSzccU6t4sDOH8NWJCstKO5QT2CvtFoK6F0saL7p9xHAqHOlCPJygA==}
     engines: {node: '>= 8'}
-    dev: true
 
   /split2@4.2.0:
     resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
