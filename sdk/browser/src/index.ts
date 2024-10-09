@@ -21,6 +21,8 @@ export {
   // thirdPartyErrorFilterIntegration,
 } from '@xigua-monitor/core';
 
+export { replayIntegration, getReplay } from '@xigua-monitor/replay';
+
 export {
   browserTracingIntegration,
   startBrowserTracingNavigationSpan,

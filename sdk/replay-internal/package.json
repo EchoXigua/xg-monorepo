@@ -1,22 +1,30 @@
 {
-  "name": "@xigua-monitor/browser",
+  "name": "@xigua-monitor/replay",
   "version": "1.0.0",
   "description": "",
   "main": "./src/index.ts",
-  "module": "./src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "default": "./src/index.ts"
+      },
+      "require": {
+        "types": "./build/npm/types/index.d.ts",
+        "default": "./build/npm/cjs/index.js"
+      }
+    }
+  },
   "dependencies": {
     "@xigua-monitor/browser-utils": "workspace:^",
     "@xigua-monitor/core": "workspace:^",
-    "@xigua-monitor/replay": "workspace:^",
+    "@xigua-monitor/types": "workspace:^",
     "@xigua-monitor/utils": "workspace:^"
-  },
-  "devDependencies": {
-    "@xigua-monitor/types": "workspace:^"
   }
 }

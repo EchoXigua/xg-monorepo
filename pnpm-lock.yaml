@@ -312,6 +312,21 @@ importers:
         specifier: workspace:^
         version: link:../types
 
+  sdk/replay-internal:
+    dependencies:
+      '@xigua-monitor/browser-utils':
+        specifier: workspace:^
+        version: link:../browser-utils
+      '@xigua-monitor/core':
+        specifier: workspace:^
+        version: link:../core
+      '@xigua-monitor/types':
+        specifier: workspace:^
+        version: link:../types
+      '@xigua-monitor/utils':
+        specifier: workspace:^
+        version: link:../utils
+
   sdk/types: {}
 
   sdk/utils:
