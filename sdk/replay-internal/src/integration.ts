@@ -30,9 +30,18 @@ import type {
 import { getPrivacyOptions } from './util/getPrivacyOptions';
 import { maskAttribute } from './util/maskAttribute';
 
+/**
+ * 包含了一系列的媒体元素选择器。这些选择器指向了不同类型的媒体元素，如图像、视频和音频等。
+ *
+ * img、video、audio等标签是常见的多媒体内容。
+ * link[rel="icon"] 和 link[rel="apple-touch-icon"] 选择了网页中常用的图标和 Apple 触控图标链接。
+ *
+ * 这个常量可能用于设置过滤或阻止特定媒体内容的逻辑，比如在会话重放中隐藏敏感信息或控制媒体播放的行为。
+ */
 const MEDIA_SELECTORS =
   'img,image,svg,video,object,picture,embed,map,audio,link[rel="icon"],link[rel="apple-touch-icon"]';
 
+/** 默认的网络请求头部字段 */
 const DEFAULT_NETWORK_HEADERS = ['content-length', 'content-type', 'accept'];
 
 let _initialized = false;
@@ -235,38 +244,45 @@ export class Replay implements Integration {
       _experiments,
     };
 
+    // blockAllMedia 是一个配置选项，它可以让用户决定是否要阻止嵌入的媒体元素（如音频、视频等）
     if (this._initialOptions.blockAllMedia) {
-      // `blockAllMedia` is a more user friendly option to configure blocking
-      // embedded media elements
+      // 设置 blockSelector，该选择器用于确定需要阻止的元素
       this._recordingOptions.blockSelector = !this._recordingOptions
         .blockSelector
-        ? MEDIA_SELECTORS
-        : `${this._recordingOptions.blockSelector},${MEDIA_SELECTORS}`;
+        ? // 如果没有配置选择器则使用默认的
+          MEDIA_SELECTORS
+        : // 配置后会将现有的选择器和 默认的组合在一起
+          `${this._recordingOptions.blockSelector},${MEDIA_SELECTORS}`;
     }
 
+    // 防止重复初始化 Sentry Session Replay 实例
     if (this._isInitialized && isBrowser()) {
       throw new Error(
+        // 提示不支持多个实例
         'Multiple Sentry Session Replay instances are not supported',
       );
     }
 
+    // 设置为 true，表示当前实例已经初始化完成
     this._isInitialized = true;
   }
 
-  /** If replay has already been initialized */
+  /**
+   * 受保护的属性，使用 getter 和 setter 来访问和更新
+   */
   protected get _isInitialized(): boolean {
     return _initialized;
   }
 
-  /** Update _isInitialized */
   protected set _isInitialized(value: boolean) {
     _initialized = value;
   }
 
   /**
-   * Setup and initialize replay container
+   * 在所有设置完成后调用，初始化回放系统
    */
   public afterAllSetup(client: Client): void {
+    // 只有在浏览器环境下且回放系统尚未初始化时，才会调用 _setup 和 _initialize 来完成设置和初始化
     if (!isBrowser() || this._replay) {
       return;
     }
@@ -276,11 +292,22 @@ export class Replay implements Integration {
   }
 
   /**
-   * Start a replay regardless of sampling rate. Calling this will always
-   * create a new session. Will log a message if replay is already in progress.
+   * 启动回放系统
    *
-   * Creates or loads a session, attaches listeners to varying events (DOM,
-   * PerformanceObserver, Recording, Sentry SDK, etc)
+   * 1. 强制启动回放：
+   * 调用这个方法会 始终创建一个新会话，不管采样率是否满足条件。
+   * 即使配置中有可能限制某些条件下的回放启动，但调用此方法会忽略这些限制并启动回放。
+   *
+   * 2. 日志记录：
+   * 如果回放已经在进行中，系统会记录一条日志信息，表明回放已经在运行。这样可以避免多次启动回放的情况。
+   *
+   * 3. 会话创建与监听器：
+   * 这个方法不仅会创建或加载一个会话，还会 附加监听器 来监听各种事件，包括：
+   *  - DOM 事件：用户界面交互（如点击、滚动等）的事件
+   *  - PerformanceObserver：用于监控性能变化，例如资源加载时间等
+   *  - Recording：捕获用户会话的录制行为
+   *  - Sentry SDK：整合 Sentry 错误监控的相关事件
+   *
    */
   public start(): void {
     if (!this._replay) {
@@ -290,8 +317,8 @@ export class Replay implements Integration {
   }
 
   /**
-   * Start replay buffering. Buffers until `flush()` is called or, if
-   * `replaysOnErrorSampleRate` > 0, until an error occurs.
+   * 启动缓冲机制，开始将数据缓冲直到 flush() 被调用，
+   * 或者在错误发生时（如果 replaysOnErrorSampleRate 大于 0）再处理数据
    */
   public startBuffering(): void {
     if (!this._replay) {
@@ -302,8 +329,12 @@ export class Replay implements Integration {
   }
 
   /**
-   * Currently, this needs to be manually called (e.g. for tests). Sentry SDK
-   * does not support a teardown
+   * 停止回放系统。如果回放系统存在，则调用 stop() 方法停止回放。
+   * 参数 forceFlush 决定是否强制刷新缓冲区（当录制模式为 session 时强制刷新）
+   *
+   * 目前，必须手动调用 stop() 方法来停止回放的录制或缓冲
+   * Sentry SDK 并不提供自动“teardown”机制，表示一旦回放启动后，
+   * SDK 本身没有提供自动清理或终止回放的机制。开发者需要自行处理停止回放的逻辑。
    */
   public stop(): Promise<void> {
     if (!this._replay) {
@@ -316,29 +347,43 @@ export class Replay implements Integration {
   }
 
   /**
-   * If not in "session" recording mode, flush event buffer which will create a new replay.
-   * If replay is not enabled, a new session replay is started.
-   * Unless `continueRecording` is false, the replay will continue to record and
-   * behave as a "session"-based replay.
+   * 将缓冲的数据刷新（发送）出去。
+   * 如果回放系统没有启用，会先启动回放系统。如果已经启用，则会根据传入的选项刷新缓冲区
    *
-   * Otherwise, queue up a flush.
+   *
+   * 1. 非 "session" 录制模式下刷新事件缓冲：
+   * 当不处于会话录制模式时，调用 flush() 会将当前缓冲区中的事件数据发送出去，并创建一个新的回放会话。
+   * 换句话说，这种情况下的 flush() 操作相当于触发了一个新的会话回放。
+   *
+   * 2. 回放未启用时启动新会话：
+   * 如果当前回放功能未启用，那么 flush() 会先启动一个新的回放会话。
+   * 这意味着即使在回放未开启的状态下，调用此方法也会确保回放功能正常运行。
+   *
+   * 3. 控制是否继续录制：
+   * 如果 continueRecording 参数为 false，那么回放在缓冲区数据刷新后将不会继续录制。
+   * 否则，回放将继续录制并且表现得像基于 "session" 的回放。
+   *
+   * 4. 排队刷新操作：
+   * 如果不符合上述情况，flush() 会将刷新操作排队，等待稍后执行。
+   *
    */
   public flush(options?: SendBufferedReplayOptions): Promise<void> {
     if (!this._replay) {
       return Promise.resolve();
     }
 
-    // assuming a session should be recorded in this case
     if (!this._replay.isEnabled()) {
+      // 如果回放系统没有启动，这里会启动回放系统并返回成功的promise
       this._replay.start();
       return Promise.resolve();
     }
 
+    // 发送缓冲的数据
     return this._replay.sendBufferedReplayOrFlush(options);
   }
 
   /**
-   * Get the current session ID.
+   * 获取当前会话id
    */
   public getReplayId(): string | undefined {
     if (!this._replay || !this._replay.isEnabled()) {
@@ -349,37 +394,57 @@ export class Replay implements Integration {
   }
 
   /**
-   * Initializes replay.
+   * 初始化回放功能，确保回放功能正确配置并启动
    */
   protected _initialize(client: Client): void {
     if (!this._replay) {
       return;
     }
 
+    // 在回放初始化时检查并加载与 Canvas 相关的集成
     this._maybeLoadFromReplayCanvasIntegration(client);
+    // 初始化会话采样逻辑，可能涉及会话的采样率或其他策略
     this._replay.initializeSampling();
   }
 
   /** Setup the integration. */
   private _setup(client: Client): void {
-    // Client is not available in constructor, so we need to wait until setupOnce
+    /**
+     * 这里解释了为什么 client 对象不能在构造函数中使用，需要等到 setupOnce 方法被调用后再进行设置
+     *
+     * 构造函数中的 client 对象未初始化是常见的情况，
+     * 因为某些依赖项（如 Sentry SDK 中的客户端实例）通常在应用的初始化过程中晚些时候才创建
+     * 由于回放集成需要访问 client 提供的一些配置信息或功能，因此在构造函数中无法直接访问这些内容。
+     *
+     * 由于 client 对象在构造函数内尚未准备好，因此需要等到适当的时机（例如在 setupOnce 方法中）才能设置回放集成。
+     */
+
+    // 将 client 传递过来的配置项与当前类的 _initialOptions 合并，生成最终的配置
     const finalOptions = loadReplayOptionsFromClient(
       this._initialOptions,
       client,
     );
 
+    // 创建一个新的 回放系统实例
     this._replay = new ReplayContainer({
       options: finalOptions,
       recordingOptions: this._recordingOptions,
     });
   }
 
-  /** Get canvas options from ReplayCanvas integration, if it is also added. */
+  /**
+   * 用于从 ReplayCanvas 集成中获取画布的选项（如果该集成已添加）
+   * 主要逻辑是检查客户端中的 ReplayCanvas 集成，如果存在该集成，
+   * 则调用其 getOptions() 方法获取画布相关的配置，并将其存储到 _replay 对象的 _canvas 属性中。
+   */
   private _maybeLoadFromReplayCanvasIntegration(client: Client): void {
-    // To save bundle size, we skip checking for stuff here
-    // and instead just try-catch everything - as generally this should all be defined
+    /**
+     * 注释部分提到：“为了节省包的大小，我们在这里跳过对内容的检查，而是选择使用 try-catch 机制，因为通常这些内容应该都是已定义的。”
+     * 这个注释的主要目的是解释在获取 ReplayCanvas 集成选项时选择使用 try-catch 的原因
+     */
     /* eslint-disable @typescript-eslint/no-non-null-assertion */
     try {
+      // 获取 ReplayCanvas 集成
       const canvasIntegration = client.getIntegrationByName(
         'ReplayCanvas',
       ) as Integration & {
@@ -389,6 +454,7 @@ export class Replay implements Integration {
         return;
       }
 
+      // 获取canvas 的配置，并保存在回放系统中
       this._replay!['_canvas'] = canvasIntegration.getOptions();
     } catch {
       // ignore errors here
@@ -397,19 +463,25 @@ export class Replay implements Integration {
   }
 }
 
-/** Parse Replay-related options from SDK options */
+/**
+ * 从 SDK 客户端获取与重放（Replay）相关的选项，并根据这些选项创建一个最终的重放插件配置
+ */
 function loadReplayOptionsFromClient(
   initialOptions: InitialReplayPluginOptions,
   client: Client,
 ): ReplayPluginOptions {
+  // 客户端配置
   const opt = client.getOptions() as BrowserClientReplayOptions;
 
+  // 最终配置
   const finalOptions: ReplayPluginOptions = {
     sessionSampleRate: 0,
     errorSampleRate: 0,
+    // 过滤掉 undefined 的属性
     ...dropUndefinedKeys(initialOptions),
   };
 
+  // 解析采样率
   const replaysSessionSampleRate = parseSampleRate(
     opt.replaysSessionSampleRate,
   );
@@ -417,6 +489,7 @@ function loadReplayOptionsFromClient(
     opt.replaysOnErrorSampleRate,
   );
 
+  // 如果两个采样率都没有设置，发出警告
   if (replaysSessionSampleRate == null && replaysOnErrorSampleRate == null) {
     consoleSandbox(() => {
       // eslint-disable-next-line no-console
@@ -426,6 +499,7 @@ function loadReplayOptionsFromClient(
     });
   }
 
+  // 如果采样率有效，则将其更新到 finalOptions 中。
   if (replaysSessionSampleRate != null) {
     finalOptions.sessionSampleRate = replaysSessionSampleRate;
   }
@@ -434,9 +508,16 @@ function loadReplayOptionsFromClient(
     finalOptions.errorSampleRate = replaysOnErrorSampleRate;
   }
 
+  // 返回最终配置
   return finalOptions;
 }
 
+/**
+ * 合并默认网络请求头与自定义请求头，并返回一个新的请求头数组
+ *
+ * @param headers
+ * @returns
+ */
 function _getMergedNetworkHeaders(headers: string[]): string[] {
   return [
     ...DEFAULT_NETWORK_HEADERS,
