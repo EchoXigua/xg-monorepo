@@ -65,4 +65,6 @@ export {
   instrumentFetchRequest,
 } from './fetch';
 
+export { parseSampleRate } from './utils/parseSampleRate';
+
 export { SDK_VERSION } from '@xigua-monitor/utils';

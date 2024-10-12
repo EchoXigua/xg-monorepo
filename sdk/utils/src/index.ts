@@ -25,5 +25,6 @@ export * from './promisebuffer';
 export * from './aggregate-errors';
 export * from './propagationContext';
 export * from './tracing';
+export * from './isBrowser';
 
 export * from './version';
