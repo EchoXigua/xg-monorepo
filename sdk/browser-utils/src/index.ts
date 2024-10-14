@@ -25,8 +25,8 @@ export {
 export { addClickKeypressInstrumentationHandler } from './instrument/dom';
 
 export {
-  // fetch,
-  // setTimeout,
+  fetch,
+  setTimeout,
   clearCachedImplementation,
   getNativeImplementation,
 } from './getNativeImplementation';
