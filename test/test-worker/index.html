@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Worker Demo</title>
+</head>
+
+<body>
+    <h1>Web Worker Communication Demo</h1>
+    <button id="startWorker">Start Worker</button>
+    <button id="sendMessage" disabled>Send Message to Worker</button>
+    <div id="output"></div>
+
+    <script>
+        let worker;
+
+        document.getElementById('startWorker').onclick = () => {
+            // 创建一个新的 Web Worker 实例
+            worker = new Worker('worker.js');
+
+            // 监听来自 Worker 的消息
+            worker.onmessage = (event) => {
+                // 显示 Worker 返回的消息
+                document.getElementById('output').innerText += `Worker says: ${event.data}\n`;
+            };
+
+            // 启用发送消息按钮
+            document.getElementById('sendMessage').disabled = false;
+        };
+
+        document.getElementById('sendMessage').onclick = () => {
+            // 向 Worker 发送消息
+            const message = 'Hello, Worker!';
+            worker.postMessage(message);
+            document.getElementById('output').innerText += `You: ${message}\n`;
+        };
+    </script>
+</body>
+
+</html>
