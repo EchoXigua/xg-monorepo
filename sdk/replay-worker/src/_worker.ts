@@ -6,7 +6,7 @@ import { handleMessage } from './handleMessage';
 
 addEventListener('message', handleMessage);
 
-// Immediately send a message when worker loads, so we know the worker is ready
+// 当worker加载时立即发送一个消息，这样我们就知道worker已经准备好了
 postMessage({
   id: undefined,
   method: 'init',
