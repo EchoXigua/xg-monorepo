@@ -1,5 +1,5 @@
 {
-  "name": "@xigua-monitor/replay",
+  "name": "@xigua-monitor/replay-worker",
   "version": "1.0.0",
   "description": "",
   "main": "./src/index.ts",
@@ -22,10 +22,6 @@
     }
   },
   "dependencies": {
-    "@xigua-monitor/browser-utils": "workspace:^",
-    "@xigua-monitor/core": "workspace:^",
-    "@xigua-monitor/types": "workspace:^",
-    "@xigua-monitor/replay-worker": "workspace:^",
-    "@xigua-monitor/utils": "workspace:^"
+    "fflate": "0.8.1"
   }
 }
