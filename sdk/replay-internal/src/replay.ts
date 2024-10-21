@@ -857,8 +857,8 @@ export class ReplayContainer implements ReplayContainerInterface {
   }
 
   /**
-   * Add a breadcrumb event, that may be throttled.
-   * If it was throttled, we add a custom breadcrumb to indicate that.
+   * 负责添加 RecordingEvent（录制事件），并对事件的添加过程进行节流控制
+   * 如果事件被节流（throttled），则会添加一个自定义的面包屑（breadcrumb）来标记事件被跳过
    */
   public throttledAddEvent(
     event: RecordingEvent,
@@ -866,15 +866,17 @@ export class ReplayContainer implements ReplayContainerInterface {
   ): typeof THROTTLED | typeof SKIPPED | Promise<AddEventResult | null> {
     const res = this._throttledAddEvent(event, isCheckout);
 
-    // If this is THROTTLED, it means we have throttled the event for the first time
-    // In this case, we want to add a breadcrumb indicating that something was skipped
+    // 检查 res 是否等于 THROTTLED，如果是则说明该事件被节流了
+    // 节流意味着当前的事件流量超过了预设限制，这里需要记录下这个现象
     if (res === THROTTLED) {
+      // 表示事件节流的信息，用于标记节流事件
       const breadcrumb = createBreadcrumb({
         category: 'replay.throttled',
       });
 
       this.addUpdate(() => {
-        // Return `false` if the event _was_ added, as that means we schedule a flush
+        // 同步的添加一个自定义事件
+        // 成功添加了事件，则返回 false，以表示成功添加后，可能需要安排一次刷新（flush）操作
         return !addEventSync(this, {
           type: ReplayEventTypeCustom,
           timestamp: breadcrumb.timestamp || 0,
@@ -887,6 +889,7 @@ export class ReplayContainer implements ReplayContainerInterface {
       });
     }
 
+    // 如果事件没有被节流，它可能返回添加事件的结果，或者一个 Promise
     return res;
   }
 
@@ -1098,32 +1101,33 @@ export class ReplayContainer implements ReplayContainerInterface {
   };
 
   /**
-   * Handle when page is blurred
+   * 在页面失去焦点时（blur 事件）被触发
    */
   private _handleWindowBlur: () => void = () => {
+    // 创建面包屑，用来标记用户离开页面的时间点
     const breadcrumb = createBreadcrumb({
       category: 'ui.blur',
     });
 
-    // Do not count blur as a user action -- it's part of the process of them
-    // leaving the page
+    // 将用户的状态从前台切换到后台，但不会将 blur 视为用户动作，因为这是自然离开页面的过程
     this._doChangeToBackgroundTasks(breadcrumb);
   };
 
   /**
-   * Handle when page is focused
+   * 当页面重新获得焦点时（focus 事件）触发，表示用户回到了当前页面或标签
    */
   private _handleWindowFocus: () => void = () => {
+    // 创建面包屑，标记页面重新获得焦点
     const breadcrumb = createBreadcrumb({
       category: 'ui.focus',
     });
 
-    // Do not count focus as a user action -- instead wait until they focus and
-    // interactive with page
+    // 处理页面切换回前台的逻辑，但不将 focus 视为用户的交互动作，
+    // 只有当用户在 focus 之后与页面交互时，才会认为有了新的动作
     this._doChangeToForegroundTasks(breadcrumb);
   };
 
-  /** Ensure page remains active when a key is pressed. */
+  /** 确保当用户按下键盘时，页面的活动状态能被正确记录*/
   private _handleKeyboardEvent: (event: KeyboardEvent) => void = (
     event: KeyboardEvent,
   ) => {
